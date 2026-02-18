@@ -1,11 +1,9 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Create an E2EE signature session on the relay server.
  *
  * Usage:
- *   node create-signature-session.mjs [server-url] --authorization-text <text|@file> [options]
- *
- * Server URL is read from scripts/config.json (relayUrl) if not provided.
+ *   bun create-signature-session.ts [server-url] --authorization-text <text|@file> [options]
  *
  * Options:
  *   --authorization-text <text|@file>  Authorization text (required). Prefix with @ to read from file.
@@ -16,12 +14,12 @@
  *   { sessionId, signUrl, privateKeyJwk, authorizationTextHash }
  */
 import { readFileSync } from 'fs';
-import { resolveServerUrl } from './_resolve-server.mjs';
+import { resolveServerUrl } from './_resolve-server.ts';
 
-const args = process.argv.slice(2);
+const args = Bun.argv.slice(2);
 const serverUrl = resolveServerUrl(args[0]);
 
-function getArg(name) {
+function getArg(name: string): string | undefined {
   const idx = args.indexOf(name);
   return idx >= 0 && idx + 1 < args.length ? args[idx + 1] : undefined;
 }
@@ -41,7 +39,7 @@ const expiryMinutes = parseInt(getArg('--expiry-minutes') || '60', 10);
 // Generate ECDH P-256 keypair
 const keyPair = await crypto.subtle.generateKey(
   { name: 'ECDH', namedCurve: 'P-256' },
-  true, // extractable
+  true,
   ['deriveBits']
 );
 
@@ -58,7 +56,7 @@ const authorizationTextHash = Array.from(new Uint8Array(hashBuf))
   .join('');
 
 // Create session on server
-const res = await fetch(`${serverUrl.replace(/\/$/, '')}/api/signatures/sessions`, {
+const res = await fetch(`${serverUrl}/api/signatures/sessions`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({

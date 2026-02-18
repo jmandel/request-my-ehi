@@ -37,6 +37,9 @@ app.get("/fax-outbox", async (c) => {
 // Static files fallback
 app.use("/public/*", serveStatic({ root: "./" }));
 
+// Serve the main site (skill.zip, index.html) from /site
+app.use("/*", serveStatic({ root: "../site" }));
+
 console.log(`EHI Relay server listening on port ${config.port}`);
 console.log(`  Base URL: ${config.baseUrl}`);
 console.log(`  Signature UI: ${config.baseUrl}/sign/<sessionId>`);
@@ -45,4 +48,5 @@ console.log(`  Fax Outbox: ${config.baseUrl}/fax-outbox`);
 export default {
   port: config.port,
   fetch: app.fetch,
+  idleTimeout: 120, // Allow long-polling up to 2 minutes
 };

@@ -1,11 +1,9 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Poll for a completed signature session, decrypt the payload, and write files.
  *
  * Usage:
- *   node poll-signature.mjs [server-url] <session-id> <private-key-jwk> [options]
- *
- * Server URL is read from scripts/config.json (relayUrl) if not provided.
+ *   bun poll-signature.ts [server-url] <session-id> <private-key-jwk> [options]
  *
  * Options:
  *   --output-dir <dir>          Output directory (default: /tmp)
@@ -19,20 +17,20 @@
  */
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { resolveServerUrl } from './_resolve-server.mjs';
+import { resolveServerUrl } from './_resolve-server.ts';
 
-const args = process.argv.slice(2);
+const args = Bun.argv.slice(2);
 const hasExplicitUrl = args[0] && (args[0].startsWith('http') || args[0].includes('://'));
 const serverUrl = resolveServerUrl(hasExplicitUrl ? args[0] : undefined);
 const sessionId = hasExplicitUrl ? args[1] : args[0];
 const privateKeyJwkStr = hasExplicitUrl ? args[2] : args[1];
 
 if (!sessionId || !privateKeyJwkStr) {
-  console.error('Usage: node poll-signature.mjs [server-url] <session-id> <private-key-jwk> [options]');
+  console.error('Usage: bun poll-signature.ts [server-url] <session-id> <private-key-jwk> [options]');
   process.exit(1);
 }
 
-function getArg(name) {
+function getArg(name: string): string | undefined {
   const idx = args.indexOf(name);
   return idx >= 0 && idx + 1 < args.length ? args[idx + 1] : undefined;
 }
@@ -52,8 +50,15 @@ const privateKey = await crypto.subtle.importKey(
   ['deriveBits']
 );
 
-const baseUrl = `${serverUrl.replace(/\/$/, '')}/api/signatures/sessions/${sessionId}`;
+const baseUrl = `${serverUrl}/api/signatures/sessions/${sessionId}`;
 console.error(`Polling for signature (session ${sessionId})...`);
+
+function base64ToBuf(b64: string): ArrayBuffer {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
 
 for (let attempt = 1; attempt <= maxAttempts; attempt++) {
   const res = await fetch(`${baseUrl}/poll?timeout=${pollTimeout}`);
@@ -62,7 +67,7 @@ for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     process.exit(1);
   }
 
-  const data = await res.json();
+  const data = await res.json() as any;
 
   if (data.status === 'waiting') {
     if (attempt % 5 === 0) {
@@ -106,7 +111,7 @@ for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       base64ToBuf(ciphertext)
     );
 
-    const payload = JSON.parse(new TextDecoder().decode(decrypted));
+    const payload = JSON.parse(new TextDecoder().decode(decrypted)) as any;
 
     // Verify hash if expected
     if (expectedHash && payload.authorizationTextHash !== expectedHash) {
@@ -151,10 +156,3 @@ for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 
 console.error(`Timed out after ${maxAttempts} attempts.`);
 process.exit(1);
-
-function base64ToBuf(b64) {
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes.buffer;
-}
