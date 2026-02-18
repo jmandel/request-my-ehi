@@ -186,7 +186,9 @@ node <skill-dir>/scripts/list-form-fields.mjs /tmp/provider_form.pdf
 
 This will show each field's type, name, current value, and widget position (x, topY, width, height). Use this to understand the form's structure.
 
-Then write a script to fill the form using pdf-lib's form field API. Map fields intelligently:
+### If the form has fillable fields (AcroForm)
+
+Write a script to fill the form using pdf-lib's form field API. Map fields intelligently:
 
 - **Patient name fields**: Look for fields containing "name", "patient" -- note that field names are sometimes misleading (e.g., "Address" might actually be the patient name field if it's the first field at the top). Use widget positions to disambiguate.
 - **Date of birth**: Fields with "birth", "dob", "date of birth"
@@ -203,6 +205,10 @@ Then write a script to fill the form using pdf-lib's form field API. Map fields 
 Always flatten the form after filling so fields render as static text.
 
 **Important**: Only include page 1 of the provider's form (skip "Additional Information" or "For Office Use Only" pages unless the patient specifically needs them).
+
+### If the form has NO fillable fields (flat/scanned PDF)
+
+**Do not attempt to draw text at guessed coordinates.** Coordinate-based drawing is fragile and produces unreliable results. Instead, fall back to the **generic authorization form** (`templates/authorization-form.pdf`) and fill it with the patient's details using the form field API -- exactly as described in Strategy B above. Let the patient know you're using a standard form because their provider's form isn't machine-fillable, and that providers are legally required to accept any valid HIPAA authorization.
 
 ## Step 7: Handle Signature
 
@@ -286,5 +292,5 @@ Also prepare them for potential pushback:
 - Install pdf-lib if needed: `npm install --prefix /tmp pdf-lib`
 - The appendix is a static PDF (`templates/appendix.pdf`) with no patient-specific content -- just copy and merge it
 - The generic authorization form (`templates/authorization-form.pdf`) is a fillable PDF with these field names: `patientName`, `dob`, `phone`, `patientAddress`, `email`, `providerName`, `providerAddress`, `recipientName`, `recipientAddress`, `recipientEmail`, `ehiExport` (checkbox), `includeDocuments` (checkbox), `additionalDescription`, `purposePersonal` (checkbox), `purposeOther` (checkbox), `purposeOtherText`, `signature`, `signatureDate`
-- When the provider's form is not a fillable PDF (no AcroForm fields), fall back to coordinate-based text drawing using drawText, but prefer form fields when available
+- When the provider's form is not a fillable PDF (no AcroForm fields), do NOT attempt coordinate-based text drawing -- fall back to the generic authorization form instead
 - No browser engine (Chrome/Chromium) is required -- all PDFs are generated and manipulated with pdf-lib
