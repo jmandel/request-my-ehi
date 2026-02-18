@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Authorization for Release of Protected Health Information</title>
+<style>
+  @page { size: letter; margin: 0.6in 0.75in 0.5in 0.75in; }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 10pt; line-height: 1.35; color: #1a1a1a; }
+  h1 { font-size: 14pt; text-align: center; margin-bottom: 2pt; margin-top: 0; color: #1a3c5e; }
+  .subtitle { text-align: center; font-size: 9pt; color: #555; margin-bottom: 10pt; }
+  h2 { font-size: 10.5pt; color: #1a3c5e; margin-top: 10pt; margin-bottom: 4pt; border-bottom: 1px solid #1a3c5e; padding-bottom: 2pt; }
+  .section { margin-bottom: 6pt; }
+  .field-row { margin: 3pt 0; }
+  .label { font-weight: bold; display: inline-block; width: 140pt; }
+  .value { border-bottom: 1px solid #999; display: inline-block; min-width: 250pt; padding-bottom: 1pt; }
+  .two-col { display: flex; gap: 20pt; }
+  .two-col .col { flex: 1; }
+  .two-col .label { width: 80pt; }
+  .two-col .value { min-width: 140pt; }
+  .checkbox-row { margin: 2pt 0; padding-left: 4pt; }
+  .box { display: inline-block; width: 11pt; height: 11pt; border: 1.5px solid #333; margin-right: 4pt; vertical-align: middle; text-align: center; font-size: 9pt; line-height: 11pt; }
+  .box.checked::after { content: "\2713"; font-weight: bold; }
+  p { margin: 4pt 0; }
+  .small { font-size: 8.5pt; color: #444; line-height: 1.3; }
+  .sig-section { margin-top: 14pt; }
+  .sig-line { border-bottom: 1px solid #333; display: inline-block; width: 280pt; margin-right: 20pt; }
+  .date-line { border-bottom: 1px solid #333; display: inline-block; width: 120pt; }
+  .sig-label { font-size: 8.5pt; color: #555; }
+  .notice { background: #f5f5f5; border-left: 3px solid #1a3c5e; padding: 4pt 8pt; margin: 8pt 0; font-size: 9pt; }
+</style>
+</head>
+<body>
+
+<h1>Authorization for Release of Protected Health Information</h1>
+<div class="subtitle">HIPAA-Compliant Authorization per 45 CFR 164.508</div>
+
+<h2>1. Patient Information</h2>
+<div class="section">
+  <div class="field-row"><span class="label">Patient Name:</span> <span class="value">{{PATIENT_NAME}}</span></div>
+  <div class="field-row"><span class="label">Date of Birth:</span> <span class="value">{{DOB}}</span></div>
+  <div class="field-row"><span class="label">Address:</span> <span class="value">{{PATIENT_ADDRESS}}</span></div>
+  <div class="field-row"><span class="label">Phone:</span> <span class="value">{{PHONE}}</span></div>
+  <div class="field-row"><span class="label">Email:</span> <span class="value">{{EMAIL}}</span></div>
+</div>
+
+<h2>2. I Authorize the Following to Release My Records</h2>
+<div class="section">
+  <div class="field-row"><span class="label">Provider/Facility:</span> <span class="value">{{PROVIDER_NAME}}</span></div>
+  <div class="field-row"><span class="label">Address:</span> <span class="value">{{PROVIDER_ADDRESS}}</span></div>
+</div>
+
+<h2>3. Release My Records To</h2>
+<div class="section">
+  <div class="field-row"><span class="label">Recipient:</span> <span class="value">{{PATIENT_NAME}} (myself)</span></div>
+  <div class="field-row"><span class="label">Address:</span> <span class="value">{{PATIENT_ADDRESS}}</span></div>
+  <div class="field-row"><span class="label">Email:</span> <span class="value">{{EMAIL}}</span></div>
+</div>
+
+<h2>4. Information to Be Released</h2>
+<div class="section">
+  <div class="checkbox-row"><span class="box checked"></span> Complete Electronic Health Information (EHI) Export</div>
+  <div class="checkbox-row"><span class="box checked"></span> All associated documents and images</div>
+  <p>See <strong>Appendix A (attached)</strong> for a detailed description of the specific export requested and instructions for producing it.</p>
+</div>
+
+<h2>5. Purpose</h2>
+<div class="section">
+  <div class="checkbox-row"><span class="box checked"></span> Personal / At the request of the individual</div>
+  <p class="small">See Appendix A for additional detail.</p>
+</div>
+
+<h2>6. Expiration</h2>
+<div class="section">
+  <p>This authorization expires one year from the date of signature, or upon fulfillment of the request, whichever comes first.</p>
+</div>
+
+<h2>7. Patient Rights</h2>
+<div class="section">
+  <p class="small">I understand that I may revoke this authorization at any time by submitting a written request, except to the extent that action has already been taken in reliance on it. I understand that information disclosed pursuant to this authorization may be subject to re-disclosure and may no longer be protected by HIPAA. I understand that my treatment, payment, enrollment, or eligibility for benefits will not be conditioned on signing this authorization. A copy of this authorization is as valid as the original.</p>
+</div>
+
+<div class="sig-section">
+  <div>
+    <span class="sig-line">{{SIGNATURE}}</span>
+    <span class="date-line">{{DATE}}</span>
+  </div>
+  <div>
+    <span class="sig-label" style="display:inline-block;width:280pt;margin-right:20pt;">Signature of Patient or Legal Representative</span>
+    <span class="sig-label" style="display:inline-block;width:120pt;">Date</span>
+  </div>
+</div>
+
+</body>
+</html>
