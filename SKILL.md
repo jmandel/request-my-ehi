@@ -7,6 +7,21 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch, WebSearch, Task
 
 # Request My EHI Export
 
+## First-Time Setup
+
+**Before using any scripts**, install dependencies in the skill's scripts directory:
+
+```bash
+cd <skill-dir>/scripts && bun install
+```
+
+This installs `pdf-lib` for PDF generation/manipulation. All scripts in this skill use **Bun** (not Node.js).
+
+**Script usage pattern:**
+```bash
+bun <skill-dir>/scripts/<script-name>.ts [arguments]
+```
+
 ## Background: What Is an EHI Export and Why Does It Matter?
 
 Every patient has a right to their complete medical record. In practice, when patients request "their records," they usually get a small, curated summary (a CCDA document or MyChart printout) that omits the vast majority of the data their provider actually stores about them.
@@ -343,11 +358,25 @@ Also prepare them for potential pushback:
 
 ## Technical Notes
 
-- **Relay server URL**: All relay scripts (`create-signature-session`, `poll-signature`, `send-fax`, `check-fax-status`) read the server URL from `scripts/config.json` (`relayUrl` field). You can also pass a URL as the first argument to override. If `relayUrl` is empty and no argument is given, the scripts will error. Check `scripts/config.json` before using relay features -- if it's not configured, signature capture and fax sending won't work (fall back to Options B/C for signatures, and manual fax/mail for submission).
+- **All scripts require Bun** -- run with `bun <script>.ts`, not `node`
+- **First-time setup**: Run `cd <skill-dir>/scripts && bun install` to install pdf-lib
+- **Relay server URL**: All relay scripts (`create-signature-session.ts`, `poll-signature.ts`, `send-fax.ts`, `check-fax-status.ts`) read the server URL from `scripts/config.json` (`relayUrl` field). You can also pass a URL as the first argument to override.
 - Use pdf-lib's form field API (not coordinate-based text drawing) wherever possible
-- Install pdf-lib if needed: `npm install --prefix /tmp pdf-lib`
 - The appendix is a static PDF (`templates/appendix.pdf`) with no patient-specific content -- just copy and merge it
 - The generic authorization form (`templates/authorization-form.pdf`) is a fillable PDF with these field names: `patientName`, `dob`, `phone`, `patientAddress`, `email`, `providerName`, `providerAddress`, `recipientName`, `recipientAddress`, `recipientEmail`, `ehiExport` (checkbox), `includeDocuments` (checkbox), `additionalDescription`, `purposePersonal` (checkbox), `purposeOther` (checkbox), `purposeOtherText`, `signature`, `signatureDate`
 - When the provider's form is not a fillable PDF (no AcroForm fields), fall back to coordinate-based text drawing using drawText, but prefer form fields when available
 - No browser engine (Chrome/Chromium) is required -- all PDFs are generated and manipulated with pdf-lib
+
+### Script Reference
+
+| Script | Usage |
+|--------|-------|
+| `lookup-vendor.ts` | `bun lookup-vendor.ts <search-term>` |
+| `list-form-fields.ts` | `bun list-form-fields.ts <pdf-path>` |
+| `generate-appendix.ts` | `bun generate-appendix.ts ['{"vendor": {...}}']` |
+| `fill-and-merge.ts` | `bun fill-and-merge.ts <config.json>` |
+| `create-signature-session.ts` | `bun create-signature-session.ts --authorization-text <text> [--signer-name <name>]` |
+| `poll-signature.ts` | `bun poll-signature.ts <session-id> '<private-key-jwk>'` |
+| `send-fax.ts` | `bun send-fax.ts <fax-number> <pdf-path>` |
+| `check-fax-status.ts` | `bun check-fax-status.ts <fax-id>` |
 

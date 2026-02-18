@@ -1,17 +1,18 @@
+#!/usr/bin/env bun
 /**
  * Enumerate all form fields in a PDF, with their types and positions.
- * Usage: node list-form-fields.mjs <path-to-pdf>
+ * Usage: bun list-form-fields.ts <path-to-pdf>
  */
 import { PDFDocument } from 'pdf-lib';
-import { readFileSync } from 'fs';
 
-const pdfPath = process.argv[2];
+const pdfPath = Bun.argv[2];
 if (!pdfPath) {
-  console.error('Usage: node list-form-fields.mjs <path-to-pdf>');
+  console.error('Usage: bun list-form-fields.ts <path-to-pdf>');
   process.exit(1);
 }
 
-const doc = await PDFDocument.load(readFileSync(pdfPath));
+const pdfBytes = await Bun.file(pdfPath).arrayBuffer();
+const doc = await PDFDocument.load(pdfBytes);
 const form = doc.getForm();
 const fields = form.getFields();
 
@@ -21,14 +22,14 @@ for (const field of fields) {
   let info = `${type}: "${name}"`;
 
   if (type === 'PDFTextField') {
-    try { info += ` value="${field.getText() || ''}"`; } catch(e) {}
+    try { info += ` value="${(field as any).getText() || ''}"`; } catch {}
   } else if (type === 'PDFCheckBox') {
-    try { info += ` checked=${field.isChecked()}`; } catch(e) {}
+    try { info += ` checked=${(field as any).isChecked()}`; } catch {}
   } else if (type === 'PDFDropdown' || type === 'PDFOptionList') {
-    try { info += ` options=${JSON.stringify(field.getOptions())}`; } catch(e) {}
+    try { info += ` options=${JSON.stringify((field as any).getOptions())}`; } catch {}
   }
 
-  const widgets = field.acroField.getWidgets();
+  const widgets = (field as any).acroField.getWidgets();
   for (const w of widgets) {
     const rect = w.getRectangle();
     const page = doc.getPages()[0];

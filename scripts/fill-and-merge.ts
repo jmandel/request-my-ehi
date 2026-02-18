@@ -1,9 +1,10 @@
+#!/usr/bin/env bun
 /**
  * Example reference script for filling a PDF form and merging with an appendix.
  * This is a template -- the agent should adapt field names and mappings
  * based on the specific provider's form.
  *
- * Usage: node fill-and-merge.mjs <config.json>
+ * Usage: bun fill-and-merge.ts <config.json>
  *
  * config.json should contain:
  * {
@@ -27,58 +28,106 @@
  *   "fieldMappings": {
  *     "patientName": "field-name-in-pdf",
  *     "dob": "field-name-in-pdf",
- *     "patientStreet": "field-name-in-pdf",
- *     "patientCityStateZip": "field-name-in-pdf",
- *     "providerName": "field-name-in-pdf",
- *     "providerStreet": "field-name-in-pdf",
- *     "providerCityStateZip": "field-name-in-pdf",
- *     "recipientName": "field-name-in-pdf",
- *     "recipientStreet": "field-name-in-pdf",
- *     "recipientCityStateZip": "field-name-in-pdf",
- *     "email": "field-name-in-pdf",
- *     "date": "field-name-in-pdf",
- *     "purposePersonal": "checkbox-field-name",
- *     "purposeOther": "checkbox-field-name",
- *     "otherText": "field-name-in-pdf",
- *     "includeImages": "checkbox-field-name"
+ *     ...
  *   },
  *   "signaturePosition": { "x": 60, "topY": 686, "height": 18 }
  * }
  */
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { existsSync } from 'fs';
 
-const configPath = process.argv[2];
+interface Patient {
+  name: string;
+  dob: string;
+  street: string;
+  cityStateZip: string;
+  phone?: string;
+  email?: string;
+}
+
+interface Provider {
+  name: string;
+  street: string;
+  cityStateZip: string;
+}
+
+interface FieldMappings {
+  patientName?: string;
+  dob?: string;
+  patientStreet?: string;
+  patientCityStateZip?: string;
+  phone?: string;
+  providerName?: string;
+  providerStreet?: string;
+  providerCityStateZip?: string;
+  recipientName?: string;
+  recipientStreet?: string;
+  recipientCityStateZip?: string;
+  email?: string;
+  date?: string;
+  purposePersonal?: string;
+  purposeOther?: string;
+  otherText?: string;
+  includeImages?: string;
+  ehiExport?: string;
+}
+
+interface SignaturePosition {
+  x?: number;
+  topY?: number;
+  height?: number;
+}
+
+interface PhiDescriptionPosition {
+  x: number;
+  topY: number;
+}
+
+interface Config {
+  formPath: string;
+  appendixPath: string;
+  outputPath: string;
+  signaturePath?: string;
+  patient: Patient;
+  provider: Provider;
+  fieldMappings: FieldMappings;
+  signaturePosition?: SignaturePosition;
+  phiDescriptionPosition?: PhiDescriptionPosition;
+}
+
+const configPath = Bun.argv[2];
 if (!configPath) {
-  console.error('Usage: node fill-and-merge.mjs <config.json>');
+  console.error('Usage: bun fill-and-merge.ts <config.json>');
   process.exit(1);
 }
 
-const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+const configFile = Bun.file(configPath);
+const config: Config = await configFile.json();
 const { formPath, appendixPath, outputPath, signaturePath, patient, provider, fieldMappings, signaturePosition } = config;
 
 // Load the provider's form
-const doc = await PDFDocument.load(readFileSync(formPath));
+const formBytes = await Bun.file(formPath).arrayBuffer();
+const doc = await PDFDocument.load(formBytes);
 const form = doc.getForm();
 const page = doc.getPages()[0];
 const { height } = page.getSize();
 
 // Helper to safely set a text field
-function setText(fieldName, value) {
-  if (!fieldName) return;
+function setText(fieldName: string | undefined, value: string | undefined) {
+  if (!fieldName || value === undefined) return;
   try {
     form.getTextField(fieldName).setText(value);
-  } catch (e) {
+  } catch (e: any) {
     console.warn(`Could not set field "${fieldName}": ${e.message}`);
   }
 }
 
 // Helper to safely check a checkbox
-function checkBox(fieldName) {
+function checkBox(fieldName: string | undefined) {
   if (!fieldName) return;
   try {
     form.getCheckBox(fieldName).check();
-  } catch (e) {
+  } catch (e: any) {
     console.warn(`Could not check "${fieldName}": ${e.message}`);
   }
 }
@@ -88,6 +137,7 @@ setText(fieldMappings.patientName, patient.name);
 setText(fieldMappings.dob, patient.dob);
 setText(fieldMappings.patientStreet, patient.street);
 setText(fieldMappings.patientCityStateZip, patient.cityStateZip);
+setText(fieldMappings.phone, patient.phone);
 
 // Fill provider info (Section 2: I authorize)
 setText(fieldMappings.providerName, provider.name);
@@ -105,6 +155,7 @@ checkBox(fieldMappings.purposePersonal);
 checkBox(fieldMappings.purposeOther);
 setText(fieldMappings.otherText, 'See Appendix A');
 checkBox(fieldMappings.includeImages);
+checkBox(fieldMappings.ehiExport);
 
 // Fill date
 const today = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
@@ -125,7 +176,7 @@ if (config.phiDescriptionPosition) {
 
 // Embed signature if provided
 if (signaturePath && existsSync(signaturePath) && signaturePosition) {
-  const sigBytes = readFileSync(signaturePath);
+  const sigBytes = await Bun.file(signaturePath).arrayBuffer();
   const sigImage = await doc.embedPng(sigBytes);
   const sigDims = sigImage.scale(1);
   const sigH = signaturePosition.height || 18;
@@ -138,20 +189,15 @@ if (signaturePath && existsSync(signaturePath) && signaturePosition) {
   });
 }
 
-// Remove signature field if it exists (to avoid overlay)
-try {
-  const sigField = form.getFields().find(f => f.constructor.name === 'PDFSignature');
-  if (sigField) form.removeField(sigField);
-} catch (e) {}
-
 // Flatten form
 form.flatten();
 const filledBytes = await doc.save();
-writeFileSync('/tmp/provider_form_filled.pdf', filledBytes);
+await Bun.write('/tmp/provider_form_filled.pdf', filledBytes);
 
 // Merge: page 1 of form + appendix
 const filledDoc = await PDFDocument.load(filledBytes);
-const appendixDoc = await PDFDocument.load(readFileSync(appendixPath));
+const appendixBytes = await Bun.file(appendixPath).arrayBuffer();
+const appendixDoc = await PDFDocument.load(appendixBytes);
 const merged = await PDFDocument.create();
 
 const [formPage1] = await merged.copyPages(filledDoc, [0]);
@@ -161,5 +207,5 @@ const appPages = await merged.copyPages(appendixDoc, appendixDoc.getPageIndices(
 for (const p of appPages) merged.addPage(p);
 
 const finalBytes = await merged.save();
-writeFileSync(outputPath, finalBytes);
+await Bun.write(outputPath, finalBytes);
 console.log(`Complete! ${merged.getPageCount()}-page PDF saved to ${outputPath}`);

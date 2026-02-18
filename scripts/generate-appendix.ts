@@ -1,13 +1,14 @@
+#!/usr/bin/env bun
 /**
  * Generate an EHI Export request appendix PDF using pdf-lib.
  * Supports both Epic (default) and non-Epic vendors.
  *
  * Usage:
  *   # Epic (default -- static content):
- *   node generate-appendix.mjs
+ *   bun generate-appendix.ts
  *
  *   # Non-Epic vendor with custom details:
- *   node generate-appendix.mjs '{"vendor": {...}}'
+ *   bun generate-appendix.ts '{"vendor": {...}}'
  *
  * The vendor object can include:
  *   developer       - Company name (e.g., "athenahealth")
@@ -24,17 +25,32 @@
  *
  * Output: /tmp/appendix.pdf
  */
-// Try local install first, fall back to /tmp
-let pdfLib;
-try { pdfLib = await import('pdf-lib'); } catch { pdfLib = await import('/tmp/node_modules/pdf-lib/dist/pdf-lib.esm.js'); }
-const { PDFDocument, rgb, StandardFonts } = pdfLib;
-import { writeFileSync } from 'fs';
+import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage, type RGB } from 'pdf-lib';
+
+interface VendorConfig {
+  developer?: string;
+  product_name?: string;
+  export_formats?: string[];
+  ehi_documentation_url?: string;
+  entity_count?: number;
+  field_count?: number;
+  summary?: string;
+  grade?: string;
+  coverage?: string;
+  approach?: string;
+  userwebTip?: string;
+}
+
+interface Config {
+  vendor?: VendorConfig;
+  outputPath?: string;
+}
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
-const config = process.argv[2] ? JSON.parse(process.argv[2]) : {};
-const vendor = config.vendor || null; // null = Epic default
+const config: Config = Bun.argv[2] ? JSON.parse(Bun.argv[2]) : {};
+const vendor = config.vendor || null;
 const outputPath = config.outputPath || '/tmp/appendix.pdf';
 
 const isEpic = !vendor;
@@ -67,8 +83,23 @@ const BODY_LEADING = BODY_SIZE * 1.5;
 // ---------------------------------------------------------------------------
 // Text helpers (word-wrapping with inline bold)
 // ---------------------------------------------------------------------------
-function wrapSegments(segments, defaultSize, maxWidth) {
-  const tokens = [];
+interface TextSegment {
+  text: string;
+  font: PDFFont;
+  size?: number;
+  color?: RGB;
+}
+
+interface Token {
+  word: string;
+  font: PDFFont;
+  size: number;
+  color?: RGB;
+  glue: boolean;
+}
+
+function wrapSegments(segments: TextSegment[], defaultSize: number, maxWidth: number): TextSegment[][] {
+  const tokens: Token[] = [];
   let prevEnd = true;
   for (const seg of segments) {
     const sz = seg.size ?? defaultSize;
@@ -81,8 +112,8 @@ function wrapSegments(segments, defaultSize, maxWidth) {
     }
     prevEnd = /\s$/.test(seg.text);
   }
-  const lines = [];
-  let cur = [], cw = 0;
+  const lines: TextSegment[][] = [];
+  let cur: TextSegment[] = [], cw = 0;
   for (const t of tokens) {
     const ww = t.font.widthOfTextAtSize(t.word, t.size);
     if (t.glue && cur.length > 0) { cur.push({ text: t.word, font: t.font, size: t.size, color: t.color }); cw += ww; continue; }
@@ -96,7 +127,7 @@ function wrapSegments(segments, defaultSize, maxWidth) {
   return lines;
 }
 
-function drawWrapped(page, segs, x, y, sz, maxW, lead, color) {
+function drawWrapped(page: PDFPage, segs: TextSegment[], x: number, y: number, sz: number, maxW: number, lead: number, color: RGB): number {
   for (const line of wrapSegments(segs, sz, maxW)) {
     let cx = x;
     for (const s of line) {
@@ -108,7 +139,7 @@ function drawWrapped(page, segs, x, y, sz, maxW, lead, color) {
   return y;
 }
 
-function md(text, roman, bold) {
+function md(text: string, roman: PDFFont, bold: PDFFont): TextSegment[] {
   return text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map(p =>
     p.startsWith('**') && p.endsWith('**')
       ? { text: p.slice(2, -2), font: bold }
@@ -140,24 +171,24 @@ page.drawLine({ start: { x: ML, y }, end: { x: PAGE_W - MR, y }, thickness: 0.75
 y -= 14;
 
 // --- Helpers ---
-function section(title) {
+function section(title: string) {
   page.drawText(title, { x: ML, y, size: SECTION_SIZE, font: hb, color: DARK_BLUE });
   y -= 4;
   page.drawLine({ start: { x: ML, y }, end: { x: PAGE_W - MR, y }, thickness: 0.5, color: DARK_BLUE, opacity: 0.3 });
   y -= BODY_LEADING + 2;
 }
-function para(text, indent = 0) {
+function para(text: string, indent = 0) {
   y = drawWrapped(page, md(text, tr, tb), ML + indent, y, BODY_SIZE, CW - indent, BODY_LEADING, BLACK);
   y -= 2;
 }
-function numbered(num, text) {
+function numbered(num: number, text: string) {
   const label = `${num}. `;
   const lw = tb.widthOfTextAtSize(label, BODY_SIZE);
   page.drawText(label, { x: ML, y, size: BODY_SIZE, font: tb, color: BLACK });
   y = drawWrapped(page, md(text, tr, tb), ML + lw + 2, y, BODY_SIZE, CW - lw - 2, BODY_LEADING, BLACK);
   y -= 1;
 }
-function bullet(text) {
+function bullet(text: string) {
   page.drawText('\u2022', { x: ML + 1, y, size: BODY_SIZE, font: h, color: BLACK });
   y = drawWrapped(page, md(text, tr, tb), ML + 14, y, BODY_SIZE, CW - 14, BODY_LEADING, BLACK);
   y -= 1;
@@ -223,9 +254,7 @@ if (isEpic) {
   } else {
     numbered(2, `Contact **${vendorName}** support or your system administrator if the feature hasn\u2019t been configured. It is a standard certified feature required for ONC certification.`);
   }
-  numbered(isEpic ? 3 : (vendor?.userwebTip ? 3 : 3),
-    `The export produces **${exportFormats}** files containing the structured data from my record.`
-  );
+  numbered(3, `The export produces **${exportFormats}** files containing the structured data from my record.`);
 }
 y -= 8;
 
@@ -233,7 +262,7 @@ y -= 8;
 {
   const colW = [CW * 0.42, CW * 0.58];
   const rowH = 18, headerH = 20, tableX = ML;
-  const rows = [];
+  const rows: string[][] = [];
 
   if (isEpic) {
     rows.push(['Epic EHI Tables spec', 'https://open.epic.com/EHITables']);
@@ -260,7 +289,6 @@ y -= 8;
     for (let c = 0; c < 2; c++) {
       const font = c === 0 ? tb : tr;
       const color = c === 1 ? DARK_BLUE : BLACK;
-      // Truncate long URLs to fit
       let txt = rows[r][c];
       while (font.widthOfTextAtSize(txt, TABLE_BODY_SIZE) > colW[c] - 12 && txt.length > 10) {
         txt = txt.slice(0, -4) + '...';
@@ -289,5 +317,5 @@ bullet('Under HIPAA, you must act on this request **within 30 days** (with one 3
 
 // ── Save ──
 const bytes = await doc.save();
-writeFileSync(outputPath, bytes);
+await Bun.write(outputPath, bytes);
 console.log(`Wrote ${outputPath}` + (vendor ? ` (${vendorName} / ${productName})` : ' (Epic default)'));
