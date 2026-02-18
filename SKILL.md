@@ -146,6 +146,18 @@ Help the patient get this form through multiple approaches:
 
 Download the PDF form to `/tmp/provider_form.pdf`.
 
+**After downloading, check if the form has fillable fields:**
+```bash
+bun <skill-dir>/scripts/list-form-fields.ts /tmp/provider_form.pdf
+```
+
+If the form has **zero fields** (common with scanned/image-based PDFs), **use Strategy B instead**. Coordinate-based text drawing on flat PDFs is fragile and produces unreliable results. The generic template is equally valid under HIPAA and produces cleaner output.
+
+**Decision tree:**
+- Provider form found **with AcroForm fields** → use provider form (Strategy A) with form field API
+- Provider form found **without AcroForm fields** → use generic template (Strategy B) with form field API
+- Provider form **not found** → use generic template (Strategy B)
+
 ### Strategy B: Use the generic authorization form
 
 If the provider's own form can't be found, use the generic HIPAA-compliant fillable PDF at `templates/authorization-form.pdf`. This is a proper interactive PDF form with labeled fields that any user could open and fill in a standard PDF reader. It includes all elements required by 45 CFR 164.508:
@@ -184,18 +196,16 @@ Note these for the delivery guidance at the end.
 
 ## Step 6: Fill the Authorization Form
 
-If you used the **generic authorization template** (Strategy B), the form is already filled -- the placeholders were substituted before rendering to PDF. Skip ahead to Step 6 (signature) or Step 7 (appendix) as appropriate. The signature placeholder `{{SIGNATURE}}` in the generic form can be left blank if the patient will print and sign, or you can overlay a signature image after rendering.
+If you used the **generic authorization template** (Strategy B), skip ahead to Step 7 (signature). The generic form has proper fillable fields and will be filled programmatically using the same form field API.
 
-If you're working with the **provider's own PDF form**, continue below.
+**When falling back to the generic template because the provider's form wasn't fillable**, explain to the patient:
+> "Your provider's form wasn't digitally fillable (it appears to be a scanned image), so I'm using a standard HIPAA-compliant authorization form instead. This is legally equivalent — providers are required to accept any valid authorization that meets the requirements of 45 CFR § 164.508. They cannot insist on their own form."
 
-First, install pdf-lib if needed:
+If you're working with the **provider's own fillable PDF form** (Strategy A with AcroForm fields), continue below.
+
+Use the reference script to enumerate all form fields:
 ```bash
-npm install --prefix /tmp pdf-lib
-```
-
-Use the reference script at `scripts/list-form-fields.mjs` to enumerate all form fields:
-```bash
-node <skill-dir>/scripts/list-form-fields.mjs /tmp/provider_form.pdf
+bun <skill-dir>/scripts/list-form-fields.ts /tmp/provider_form.pdf
 ```
 
 This will show each field's type, name, current value, and widget position (x, topY, width, height). Use this to understand the form's structure.
@@ -364,7 +374,7 @@ Also prepare them for potential pushback:
 - Use pdf-lib's form field API (not coordinate-based text drawing) wherever possible
 - The appendix is a static PDF (`templates/appendix.pdf`) with no patient-specific content -- just copy and merge it
 - The generic authorization form (`templates/authorization-form.pdf`) is a fillable PDF with these field names: `patientName`, `dob`, `phone`, `patientAddress`, `email`, `providerName`, `providerAddress`, `recipientName`, `recipientAddress`, `recipientEmail`, `ehiExport` (checkbox), `includeDocuments` (checkbox), `additionalDescription`, `purposePersonal` (checkbox), `purposeOther` (checkbox), `purposeOtherText`, `signature`, `signatureDate`
-- When the provider's form is not a fillable PDF (no AcroForm fields), fall back to coordinate-based text drawing using drawText, but prefer form fields when available
+- When the provider's form is not a fillable PDF (no AcroForm fields), **prefer using the generic authorization template** (Strategy B) instead of coordinate-based text drawing. The generic template produces cleaner, more reliable output via the form field API, and is equally valid under HIPAA. Reserve coordinate-based `drawText` only as a last resort when neither the provider's fillable form nor the generic template is suitable
 - No browser engine (Chrome/Chromium) is required -- all PDFs are generated and manipulated with pdf-lib
 
 ### Script Reference
