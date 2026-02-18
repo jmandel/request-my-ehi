@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>request-my-ehi - Claude Code Skill</title>
+<style>
+  :root { --blue: #1a3c5e; --light: #f7f8fa; --border: #e1e4e8; --text: #24292f; --muted: #57606a; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: var(--text); line-height: 1.6; }
+  a { color: var(--blue); }
+
+  .hero { background: var(--blue); color: white; padding: 3rem 1.5rem; text-align: center; }
+  .hero h1 { font-size: 2.2rem; margin-bottom: 0.5rem; font-weight: 700; letter-spacing: -0.02em; }
+  .hero p { font-size: 1.15rem; opacity: 0.9; max-width: 640px; margin: 0 auto 1.5rem; }
+  .hero .actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+  .hero .btn { display: inline-block; padding: 0.65rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.95rem; }
+  .hero .btn-primary { background: white; color: var(--blue); }
+  .hero .btn-secondary { border: 1.5px solid rgba(255,255,255,0.5); color: white; }
+
+  .container { max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  h2 { font-size: 1.4rem; color: var(--blue); margin: 2rem 0 0.75rem; padding-bottom: 0.4rem; border-bottom: 2px solid var(--border); }
+  h3 { font-size: 1.1rem; margin: 1.25rem 0 0.5rem; }
+  p, li { margin-bottom: 0.5rem; }
+  ul, ol { padding-left: 1.5rem; }
+  code { background: var(--light); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; }
+  pre { background: var(--light); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; overflow-x: auto; margin: 0.75rem 0; }
+  pre code { background: none; padding: 0; }
+
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin: 1rem 0; }
+  .feature { background: var(--light); border-radius: 8px; padding: 1.25rem; border: 1px solid var(--border); }
+  .feature h3 { margin-top: 0; font-size: 1rem; }
+  .feature p { font-size: 0.9rem; color: var(--muted); margin: 0; }
+
+  .steps { counter-reset: step; }
+  .steps li { counter-increment: step; list-style: none; position: relative; padding-left: 2.5rem; margin-bottom: 0.75rem; }
+  .steps li::before { content: counter(step); position: absolute; left: 0; top: 0.1em; width: 1.6rem; height: 1.6rem; background: var(--blue); color: white; border-radius: 50%; text-align: center; font-size: 0.8rem; line-height: 1.6rem; font-weight: 600; }
+
+  .legal { background: var(--light); border-left: 3px solid var(--blue); padding: 1rem 1.25rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.9rem; }
+  .legal strong { color: var(--blue); }
+
+  footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--border); margin-top: 2rem; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>request-my-ehi</h1>
+  <p>A Claude Code skill that helps patients request their complete Electronic Health Information export from any healthcare provider.</p>
+  <div class="actions">
+    <a href="skill.zip" class="btn btn-primary">Download skill.zip</a>
+    <a href="https://github.com/jmandel/request-my-ehi" class="btn btn-secondary">View on GitHub</a>
+  </div>
+</div>
+
+<div class="container">
+
+<h2>What is EHI Export?</h2>
+<p>Every certified EHR system in the US has been required to support <strong>single-patient EHI Export</strong> since December 31, 2023. This feature produces a bulk export of <em>all</em> structured data in your patient record -- far more complete than a CCDA, patient portal download, or standard records release.</p>
+<p>Most patients don't know it exists. This skill changes that.</p>
+
+<h2>What It Does</h2>
+<div class="features">
+  <div class="feature">
+    <h3>Identifies Your EHR</h3>
+    <p>Detects your provider's EHR system from portal URLs, web search, or a database of 70+ certified vendors.</p>
+  </div>
+  <div class="feature">
+    <h3>Finds the Right Form</h3>
+    <p>Locates your provider's authorization form online, or uses a generic HIPAA-compliant fillable PDF.</p>
+  </div>
+  <div class="feature">
+    <h3>Fills Everything Out</h3>
+    <p>Programmatically fills the form using pdf-lib's form field API. Embeds your signature if provided.</p>
+  </div>
+  <div class="feature">
+    <h3>Vendor-Specific Appendix</h3>
+    <p>Generates a one-page appendix citing the exact product, export format, documentation URL, and legal basis.</p>
+  </div>
+</div>
+
+<h2>How It Works</h2>
+<ol class="steps">
+  <li>Understand your situation and explain EHI Export</li>
+  <li>Identify your provider's EHR system</li>
+  <li>Collect your details (or extract from an uploaded file)</li>
+  <li>Find the provider's authorization form</li>
+  <li>Find fax/mailing address for submission</li>
+  <li>Fill out the form programmatically</li>
+  <li>Embed your signature (optional)</li>
+  <li>Generate a vendor-specific appendix</li>
+  <li>Merge into a ready-to-submit 2-page PDF</li>
+  <li>Help you actually submit the request</li>
+</ol>
+
+<h2>Installation</h2>
+<h3>Option A: Git clone</h3>
+<pre><code>git clone https://github.com/jmandel/request-my-ehi.git ~/.claude/skills/request-my-ehi</code></pre>
+
+<h3>Option B: Download</h3>
+<p>Download <a href="skill.zip">skill.zip</a> and extract to <code>~/.claude/skills/request-my-ehi/</code></p>
+
+<h3>Prerequisites</h3>
+<ul>
+  <li><a href="https://claude.ai/code">Claude Code</a> CLI</li>
+  <li>Node.js >= 18</li>
+  <li>pdf-lib (installed automatically by the skill)</li>
+</ul>
+
+<h2>Usage</h2>
+<pre><code>/request-my-ehi Associated Physicians of Madison</code></pre>
+<p>Or just describe what you want in natural language:</p>
+<pre><code>I need to request my complete medical records from my doctor. They use athenahealth.</code></pre>
+
+<h2>Supported Vendors</h2>
+<p>The skill includes a database of <strong>70+ certified EHR vendors</strong> with detailed export information -- product names, export formats, documentation URLs, entity/field counts, and quality grades. Vendors include Epic, athenahealth, Cerner/Oracle Health, NextGen, eClinicalWorks, Veradigm, Elation, DrChrono, and many more.</p>
+<p>Data sourced from the <a href="https://joshuamandel.com/ehi-export-analysis/">EHI Export Analysis</a> project.</p>
+
+<div class="legal">
+  <p><strong>HIPAA Right of Access</strong> (45 CFR 164.524) -- patients can request their PHI in electronic form.</p>
+  <p><strong>21st Century Cures Act</strong> (45 CFR Part 171) -- declining to use a certified export feature may constitute information blocking.</p>
+  <p><strong>ONC Certification</strong> 170.315(b)(10) -- EHI Export required since December 31, 2023.</p>
+</div>
+
+</div>
+
+<footer>
+  <p>Apache-2.0 License | <a href="https://github.com/jmandel/request-my-ehi">GitHub</a> | Built with <a href="https://claude.ai/code">Claude Code</a></p>
+</footer>
+
+</body>
+</html>
