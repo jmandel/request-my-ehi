@@ -73,6 +73,7 @@ interface FieldMappings {
 }
 
 interface SignaturePosition {
+  page?: number;  // 0-indexed, defaults to 0 (first page)
   x?: number;
   topY?: number;
   height?: number;
@@ -109,7 +110,8 @@ const { formPath, appendixPath, outputPath, signaturePath, patient, provider, fi
 const formBytes = await Bun.file(formPath).arrayBuffer();
 const doc = await PDFDocument.load(formBytes);
 const form = doc.getForm();
-const page = doc.getPages()[0];
+const pages = doc.getPages();
+const page = pages[0];  // First page for form fields
 const { height } = page.getSize();
 
 // Helper to safely set a text field
@@ -181,12 +183,19 @@ if (signaturePath && existsSync(signaturePath) && signaturePosition) {
   const sigDims = sigImage.scale(1);
   const sigH = signaturePosition.height || 18;
   const sigW = sigH * (sigDims.width / sigDims.height);
-  page.drawImage(sigImage, {
+  
+  // Get the correct page for signature (default to first page)
+  const sigPageIndex = signaturePosition.page ?? 0;
+  const sigPage = pages[sigPageIndex] || pages[0];
+  const { height: sigPageHeight } = sigPage.getSize();
+  
+  sigPage.drawImage(sigImage, {
     x: signaturePosition.x || 60,
-    y: height - (signaturePosition.topY || 686),
+    y: sigPageHeight - (signaturePosition.topY || 686),
     width: sigW,
     height: sigH,
   });
+  console.log(`Signature placed on page ${sigPageIndex + 1} at (${signaturePosition.x || 60}, ${signaturePosition.topY || 686})`);
 }
 
 // Flatten form

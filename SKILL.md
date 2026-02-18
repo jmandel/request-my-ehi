@@ -82,7 +82,7 @@ Figure out which EHR system the provider uses. This determines the vendor-specif
 Use the vendor database at `https://joshuamandel.com/ehi-export-analysis/data/vendors.json` (71 vendors with detailed export information). The lookup script makes this easy:
 
 ```bash
-node <skill-dir>/scripts/lookup-vendor.mjs "athena"
+bun <skill-dir>/scripts/lookup-vendor.ts "athena"
 ```
 
 This returns the vendor's:
@@ -238,7 +238,7 @@ If the relay server is configured (check `scripts/config.json` -- `relayUrl` mus
 
 1. **Create a session:**
 ```bash
-node <skill-dir>/scripts/create-signature-session.mjs \
+bun <skill-dir>/scripts/create-signature-session.ts \
   --authorization-text "I, Jane Doe, authorize Example Health to release..." \
   --signer-name "Jane Doe" \
   --expiry-minutes 60
@@ -258,7 +258,7 @@ Save all four fields. The `--authorization-text` can also read from a file with 
 
 3. **Poll for completion** (run in background while you continue preparing other steps):
 ```bash
-node <skill-dir>/scripts/poll-signature.mjs <session-id> '<private-key-jwk-json>' \
+bun <skill-dir>/scripts/poll-signature.ts <session-id> '<private-key-jwk-json>' \
   --output-dir /tmp --expected-hash <authorizationTextHash>
 ```
 This blocks until the patient signs (or the session expires). On success it writes:
@@ -300,10 +300,10 @@ Use the pre-built static PDF at `templates/appendix.pdf`. Just copy it to `/tmp/
 
 ### For non-Epic providers
 
-Generate a vendor-specific appendix using the `scripts/generate-appendix.mjs` script. Pass the vendor details from Step 2:
+Generate a vendor-specific appendix using the `scripts/generate-appendix.ts` script. Pass the vendor details from Step 2:
 
 ```bash
-node <skill-dir>/scripts/generate-appendix.mjs '{
+bun <skill-dir>/scripts/generate-appendix.ts '{
   "vendor": {
     "developer": "athenahealth, Inc.",
     "product_name": "athenaClinicals",
@@ -329,21 +329,41 @@ Use pdf-lib to merge:
 1. Page 1 of the filled provider form
 2. The appendix PDF (1 page)
 
-The reference script at `scripts/fill-and-merge.mjs` shows the full pattern. Save the final 2-page PDF to the working directory with a descriptive name like `ehi-request-[provider].pdf`.
+The reference script at `scripts/fill-and-merge.ts` shows the full pattern. Save the final 2-page PDF to the working directory with a descriptive name like `ehi-request-[provider].pdf`.
+
+**⚠️ Verify signature placement:** After generating the PDF with a signature:
+1. Use a PDF-to-image tool or your environment's screenshot capability to visually inspect the signature location
+2. Check that the signature appears in the correct position on the correct page (note: `signaturePosition.page` specifies which page, 0-indexed)
+3. Confirm the signature is not overlapping other text or cut off at edges
+4. If placement is wrong, adjust the coordinates in your config and regenerate
+
+Only proceed once you've verified the PDF looks correct.
 
 ## Step 10: Help the Patient Submit
 
 This is where many patients get stuck. Don't just hand them the PDF -- help them actually submit it.
 
-1. **Fax via relay server** (recommended if `relayUrl` is configured in `scripts/config.json`): If you found the provider's fax number, send the fax directly:
+**⚠️ CRITICAL: Always get explicit user approval before submitting.**
+
+Before faxing, mailing, or otherwise submitting the request:
+1. Show the user the completed PDF (provide a download link or display it)
+2. Summarize what will be sent: recipient fax number/address, document contents, page count
+3. Ask the user to confirm: "Ready to send this {N}-page fax to {fax number}?"
+4. Only proceed after receiving explicit confirmation (e.g., "yes", "send it", "go ahead")
+
+**Never auto-submit without user approval.** The patient must review and approve before any transmission.
+
+### Submission options:
+
+1. **Fax via relay server** (recommended if `relayUrl` is configured in `scripts/config.json`): If you found the provider's fax number and the user has approved, send the fax:
 ```bash
-node <skill-dir>/scripts/send-fax.mjs "+15551234567" ./ehi-request-provider.pdf
+bun <skill-dir>/scripts/send-fax.ts "+15551234567" ./ehi-request-provider.pdf
 ```
-Outputs JSON to stdout with `faxId`, `provider`, and `status` (initially `"queued"`). Check delivery status:
+Outputs JSON to stdout with `faxId`, `provider`, and `status` (initially `"queued"` or `"sending"`). Check delivery status:
 ```bash
-node <skill-dir>/scripts/check-fax-status.mjs <fax-id>
+bun <skill-dir>/scripts/check-fax-status.ts <fax-id>
 ```
-Returns `status` (`queued` | `sending` | `delivered` | `failed`), plus `pages`, `completedAt`, and `errorMessage` when applicable. The patient (or an operator) can also monitor progress at the relay server's `/fax-outbox` page.
+Returns `status` (`queued` | `sending` | `delivered` | `failed`), plus `pages`, `completedAt`, and `errorMessage` when applicable.
 
 2. **Fax** (manual): If you found the fax number earlier, tell them exactly where to fax. Many online fax services work if they don't have a physical fax machine.
 3. **In person**: They can print and drop it off at the provider's medical records or HIM department.
@@ -373,7 +393,7 @@ Also prepare them for potential pushback:
 - **Relay server URL**: All relay scripts (`create-signature-session.ts`, `poll-signature.ts`, `send-fax.ts`, `check-fax-status.ts`) read the server URL from `scripts/config.json` (`relayUrl` field). You can also pass a URL as the first argument to override.
 - Use pdf-lib's form field API (not coordinate-based text drawing) wherever possible
 - The appendix is a static PDF (`templates/appendix.pdf`) with no patient-specific content -- just copy and merge it
-- The generic authorization form (`templates/authorization-form.pdf`) is a fillable PDF (19 fields) with these field names: `patientName`, `dob`, `phone`, `patientAddress`, `email`, `providerName`, `providerAddress`, `recipientName`, `recipientAddress`, `recipientEmail`, `ehiExport` (checkbox), `includeDocuments` (checkbox), `additionalDescription`, `purposePersonal` (checkbox), `purposeOther` (checkbox), `purposeOtherText`, `signature`, `signatureDate`, `representativeAuth`. The form is generated by `scripts/build-authorization-form.mjs` and satisfies both 45 CFR § 164.524 (Right of Access, primary basis) and § 164.508 (Authorization, belt-and-suspenders).
+- The generic authorization form (`templates/authorization-form.pdf`) is a fillable PDF (19 fields) with these field names: `patientName`, `dob`, `phone`, `patientAddress`, `email`, `providerName`, `providerAddress`, `recipientName`, `recipientAddress`, `recipientEmail`, `ehiExport` (checkbox), `includeDocuments` (checkbox), `additionalDescription`, `purposePersonal` (checkbox), `purposeOther` (checkbox), `purposeOtherText`, `signature`, `signatureDate`, `representativeAuth`. The form is generated by `scripts/build-authorization-form.ts` and satisfies both 45 CFR § 164.524 (Right of Access, primary basis) and § 164.508 (Authorization, belt-and-suspenders).
 - When the provider's form is not a fillable PDF (no AcroForm fields), **prefer using the generic authorization template** (Strategy B) instead of coordinate-based text drawing. The generic template produces cleaner, more reliable output via the form field API, and is equally valid under HIPAA. Reserve coordinate-based `drawText` only as a last resort when neither the provider's fillable form nor the generic template is suitable
 - No browser engine (Chrome/Chromium) is required -- all PDFs are generated and manipulated with pdf-lib
 

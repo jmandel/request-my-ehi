@@ -4,6 +4,7 @@ import { serveStatic } from "hono/bun";
 import { config } from "./config.ts";
 import { signatureRoutes } from "./routes/signature.ts";
 import { faxRoutes } from "./routes/fax.ts";
+import { isSimulatedMode } from "./fax/index.ts";
 import { getSession } from "./store.ts";
 
 const app = new Hono();
@@ -28,8 +29,11 @@ app.get("/sign/:sessionId", async (c) => {
   return c.html(html);
 });
 
-// Serve fax outbox UI
+// Serve fax outbox UI (only in simulated mode)
 app.get("/fax-outbox", async (c) => {
+  if (!isSimulatedMode()) {
+    return c.text("Fax outbox is only available in simulated mode", 404);
+  }
   const html = await Bun.file(new URL("../public/fax-outbox.html", import.meta.url).pathname).text();
   return c.html(html);
 });
@@ -43,7 +47,11 @@ app.use("/*", serveStatic({ root: "../site" }));
 console.log(`EHI Relay server listening on port ${config.port}`);
 console.log(`  Base URL: ${config.baseUrl}`);
 console.log(`  Signature UI: ${config.baseUrl}/sign/<sessionId>`);
-console.log(`  Fax Outbox: ${config.baseUrl}/fax-outbox`);
+if (isSimulatedMode()) {
+  console.log(`  Fax Outbox (simulated): ${config.baseUrl}/fax-outbox`);
+} else {
+  console.log(`  Fax Provider: Sinch (real faxes)`);
+}
 
 export default {
   port: config.port,

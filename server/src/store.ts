@@ -43,9 +43,14 @@ export interface FaxJob {
 const sessions = new Map<string, SignatureSession>();
 const faxJobs = new Map<string, FaxJob>();
 
-// Cleanup expired sessions every 60s
+// TTL for data cleanup (1 hour of inactivity)
+const DATA_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+// Cleanup expired sessions and old fax jobs every 60s
 setInterval(() => {
   const now = Date.now();
+  
+  // Clean up signature sessions
   for (const [id, session] of sessions) {
     if (now > session.expiresAt && session.status === "waiting") {
       session.status = "expired";
@@ -55,8 +60,21 @@ setInterval(() => {
       session.waiters = [];
     }
     // Remove sessions that expired more than 1 hour ago
-    if (now > session.expiresAt + 3600000) {
+    if (now > session.expiresAt + DATA_TTL_MS) {
+      console.log(`[Cleanup] Removing expired signature session ${id}`);
       sessions.delete(id);
+    }
+  }
+  
+  // Clean up fax jobs older than 1 hour
+  for (const [id, job] of faxJobs) {
+    const createdAt = new Date(job.createdAt).getTime();
+    const completedAt = job.completedAt ? new Date(job.completedAt).getTime() : null;
+    const lastActivity = completedAt || createdAt;
+    
+    if (now - lastActivity > DATA_TTL_MS) {
+      console.log(`[Cleanup] Removing old fax job ${id} (status: ${job.status})`);
+      faxJobs.delete(id);
     }
   }
 }, 60000);

@@ -9,6 +9,15 @@ import { sinchProvider, isConfigured as sinchConfigured } from "./sinch.ts";
 export type { FaxProvider, FaxSendRequest, FaxResult, FaxStatusResult } from "./types.ts";
 export { simulateStatusChange } from "./simulated.ts";
 
+let _isSimulatedMode: boolean | null = null;
+
+export function isSimulatedMode(): boolean {
+  if (_isSimulatedMode === null) {
+    _isSimulatedMode = !sinchConfigured();
+  }
+  return _isSimulatedMode;
+}
+
 export function getFaxProvider(): FaxProvider {
   // Use Sinch if configured, otherwise simulated
   if (sinchConfigured()) {

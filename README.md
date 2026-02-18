@@ -73,18 +73,18 @@ request-my-ehi/
 ├── SKILL.md                              # Skill definition and instructions
 ├── scripts/
 │   ├── config.json                       # Relay server URL (set relayUrl here)
-│   ├── _resolve-server.mjs              # Shared helper: resolves server URL from config or CLI
-│   ├── lookup-vendor.mjs                 # Search the 71-vendor EHI database
-│   ├── generate-appendix.mjs             # Generate vendor-specific appendix PDF
-│   ├── list-form-fields.mjs              # Enumerate fields in any PDF form
-│   ├── fill-and-merge.mjs                # Reference: fill form + merge with appendix
-│   ├── create-signature-session.mjs      # Create an E2EE signature capture session
-│   ├── poll-signature.mjs                # Poll for and decrypt a completed signature
-│   ├── send-fax.mjs                      # Send a PDF via the relay server fax outbox
-│   └── check-fax-status.mjs             # Check fax delivery status
+│   ├── _resolve-server.ts              # Shared helper: resolves server URL from config or CLI
+│   ├── lookup-vendor.ts                 # Search the 71-vendor EHI database
+│   ├── generate-appendix.ts             # Generate vendor-specific appendix PDF
+│   ├── list-form-fields.ts              # Enumerate fields in any PDF form
+│   ├── fill-and-merge.ts                # Reference: fill form + merge with appendix
+│   ├── create-signature-session.ts      # Create an E2EE signature capture session
+│   ├── poll-signature.ts                # Poll for and decrypt a completed signature
+│   ├── send-fax.ts                       # Send a PDF via fax API
+│   └── check-fax-status.ts              # Check fax delivery status
 ├── server/                               # Relay server (deployed separately)
 │   ├── src/                              # Bun + Hono server source
-│   ├── public/                           # sign.html, fax-outbox.html
+│   ├── public/                           # sign.html (signature capture UI)
 │   ├── Dockerfile
 │   └── package.json
 └── templates/
@@ -99,7 +99,7 @@ request-my-ehi/
 The `server/` directory contains an optional relay server (Bun + Hono) that provides:
 
 - **E2EE Signature Capture** -- patient draws their signature on a mobile-friendly web page; encrypted in-browser with ECDH P-256 + AES-256-GCM before reaching the server
-- **Simulated Fax Outbox** -- faxes queue in-memory with a web UI for viewing PDFs and advancing delivery workflow
+- **Fax API** -- send faxes via configured provider (Sinch) and check delivery status
 
 The relay scripts (`create-signature-session`, `poll-signature`, `send-fax`, `check-fax-status`) read the server URL from `scripts/config.json`. Set `relayUrl` there after deploying.
 

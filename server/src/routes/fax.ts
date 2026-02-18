@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { createFaxJob, getFaxJob, getAllFaxJobs, updateFaxJobStatus } from "../store.ts";
-import { getFaxProvider, simulateStatusChange } from "../fax/index.ts";
+import { getFaxProvider, simulateStatusChange, isSimulatedMode } from "../fax/index.ts";
 import { config } from "../config.ts";
 
 export const faxRoutes = new Hono();
@@ -154,8 +154,11 @@ faxRoutes.post("/webhook", async (c) => {
   return c.json({ received: true, processed: false });
 });
 
-// List all fax jobs (for outbox UI)
+// List all fax jobs (for outbox UI - only in simulated mode)
 faxRoutes.get("/jobs", (c) => {
+  if (!isSimulatedMode()) {
+    return c.json({ error: "Fax job list only available in simulated mode" }, 403);
+  }
   const jobs = getAllFaxJobs();
   return c.json(
     jobs.map((j) => ({
@@ -175,8 +178,12 @@ faxRoutes.get("/jobs", (c) => {
   );
 });
 
-// Simulate a workflow event (only works for simulated provider)
+// Simulate a workflow event (only in simulated mode)
 faxRoutes.post("/jobs/:id/simulate", async (c) => {
+  if (!isSimulatedMode()) {
+    return c.json({ error: "Simulation only available in simulated mode" }, 403);
+  }
+  
   const job = getFaxJob(c.req.param("id"));
   if (!job) {
     return c.json({ error: "Fax job not found" }, 404);
@@ -214,8 +221,12 @@ faxRoutes.post("/jobs/:id/simulate", async (c) => {
   });
 });
 
-// Download the fax PDF
+// Download the fax PDF (only in simulated mode - real faxes go directly to Sinch)
 faxRoutes.get("/jobs/:id/download", (c) => {
+  if (!isSimulatedMode()) {
+    return c.json({ error: "Download only available in simulated mode" }, 403);
+  }
+  
   const job = getFaxJob(c.req.param("id"));
   if (!job) {
     return c.text("Not found", 404);
