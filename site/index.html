@@ -99,7 +99,8 @@
 <pre><code>git clone https://github.com/jmandel/request-my-ehi.git ~/.claude/skills/request-my-ehi</code></pre>
 
 <h3>Option B: Download</h3>
-<p>Download <a href="skill.zip">skill.zip</a> and extract to <code>~/.claude/skills/request-my-ehi/</code></p>
+<p>Download <a href="skill.zip">skill.zip</a> and extract into <code>~/.claude/skills/</code>:</p>
+<pre><code>cd ~/.claude/skills && unzip ~/Downloads/skill.zip</code></pre>
 
 <h3>Prerequisites</h3>
 <ul>
@@ -109,9 +110,10 @@
 </ul>
 
 <h2>Usage</h2>
-<pre><code>/request-my-ehi Associated Physicians of Madison</code></pre>
-<p>Or just describe what you want in natural language:</p>
-<pre><code>I need to request my complete medical records from my doctor. They use athenahealth.</code></pre>
+<p>Just tell Claude Code what you need:</p>
+<pre><code>I need to request my complete medical records from Associated Physicians of Madison.</code></pre>
+<pre><code>Help me get my EHI export. My provider uses athenahealth.</code></pre>
+<pre><code>I want all my health data. My patient portal is at mychart.myhealthsystem.org.</code></pre>
 
 <h2>Supported Vendors</h2>
 <p>The skill includes a database of <strong>70+ certified EHR vendors</strong> with detailed export information -- product names, export formats, documentation URLs, entity/field counts, and quality grades. Vendors include Epic, athenahealth, Cerner/Oracle Health, NextGen, eClinicalWorks, Veradigm, Elation, DrChrono, and many more.</p>

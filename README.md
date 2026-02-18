@@ -40,19 +40,21 @@ git clone https://github.com/jmandel/request-my-ehi.git .claude/skills/request-m
 
 ## Usage
 
-Invoke the skill in Claude Code:
+Once installed, just tell Claude Code what you need:
 
 ```
-/request-my-ehi Associated Physicians of Madison
+I need to request my complete medical records from Associated Physicians of Madison.
 ```
 
-or just describe what you want:
-
 ```
-I need to request my complete medical records from my doctor's office. They use Epic.
+Help me get my EHI export from my doctor. They use athenahealth.
 ```
 
-The skill will guide you through:
+```
+I want to request all my health data from my provider. Their patient portal is at mychart.myhealthsystem.org.
+```
+
+Claude will recognize the intent and activate the skill. It will guide you through:
 1. Understanding your situation and explaining EHI Export
 2. Identifying your provider's EHR system
 3. Collecting your details (or extracting from an uploaded file like a FHIR Patient resource)
