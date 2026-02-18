@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Sign Authorization</title>
+<title>Draw Your Signature</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -28,6 +28,12 @@
   .subtitle {
     color: #666;
     font-size: 0.9rem;
+    margin-bottom: 6px;
+  }
+  .instructions {
+    color: #888;
+    font-size: 0.85rem;
+    line-height: 1.5;
     margin-bottom: 20px;
   }
   .section {
@@ -44,18 +50,6 @@
     letter-spacing: 0.05em;
     color: #1a3c5e;
     margin-bottom: 10px;
-  }
-  .auth-text-box {
-    max-height: 200px;
-    overflow-y: auto;
-    padding: 12px;
-    background: #f8f9fb;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    color: #333;
   }
   .canvas-wrapper {
     position: relative;
@@ -86,51 +80,26 @@
     background: none;
     border: 1px solid #ccc;
     border-radius: 4px;
-    padding: 4px 12px;
-    font-size: 0.8rem;
+    padding: 8px 16px;
+    font-size: 0.85rem;
     color: #666;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
   .clear-btn:hover { border-color: #999; color: #333; }
-  .name-input {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    font-size: 1rem;
-    outline: none;
-  }
-  .name-input:focus { border-color: #1a3c5e; box-shadow: 0 0 0 2px rgba(26,60,94,0.1); }
-  .checkbox-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-  .checkbox-row input[type="checkbox"] {
-    margin-top: 3px;
-    accent-color: #1a3c5e;
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-  }
-  .checkbox-row label {
-    font-size: 0.85rem;
-    line-height: 1.4;
-    color: #444;
-    cursor: pointer;
-  }
   .submit-btn {
     width: 100%;
-    padding: 14px;
+    padding: 16px;
     background: #1a3c5e;
     color: #fff;
     border: none;
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-appearance: none;
   }
   .submit-btn:hover:not(:disabled) { background: #245080; }
   .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -177,13 +146,9 @@
 
   <!-- Main signing form -->
   <div id="sign-form" class="hidden">
-    <h1>Authorization Signature</h1>
+    <h1>Draw Your Signature</h1>
     <p class="subtitle" id="signer-greeting"></p>
-
-    <div class="section">
-      <div class="section-label">Authorization Text</div>
-      <div class="auth-text-box" id="auth-text"></div>
-    </div>
+    <p class="instructions" id="instructions-text"></p>
 
     <div class="section">
       <div class="section-label">Your Signature</div>
@@ -192,22 +157,6 @@
         <div class="canvas-hint" id="canvas-hint">Draw your signature here</div>
       </div>
       <button class="clear-btn" id="clear-btn">Clear</button>
-    </div>
-
-    <div class="section">
-      <div class="section-label">Printed Name</div>
-      <input type="text" class="name-input" id="typed-name" placeholder="Type your full name">
-    </div>
-
-    <div class="section">
-      <div class="checkbox-row">
-        <input type="checkbox" id="cb-read">
-        <label for="cb-read">I have read and understand the authorization text above</label>
-      </div>
-      <div class="checkbox-row">
-        <input type="checkbox" id="cb-esign">
-        <label for="cb-esign">I consent to use an electronic signature under the ESIGN Act</label>
-      </div>
     </div>
 
     <button class="submit-btn" id="submit-btn" disabled>Submit Signature</button>
@@ -220,7 +169,7 @@
   const sessionId = window.location.pathname.split('/sign/')[1]?.split('?')[0];
   if (!sessionId) return showError('No session ID found in URL.');
 
-  let serverPublicKey, authText, signerName;
+  let serverPublicKey, instructions, signerName;
   let hasDrawn = false;
 
   // --- Load session info ---
@@ -234,19 +183,16 @@
     }
     const data = await res.json();
     serverPublicKey = data.publicKeyJwk;
-    authText = data.authorizationText;
+    instructions = data.instructions;
     signerName = data.signerName;
   } catch (e) {
     return showError('Could not connect to the server. Please try again.');
   }
 
   // --- Populate UI ---
-  $('#auth-text').textContent = authText;
+  $('#instructions-text').textContent = instructions;
   if (signerName) {
-    $('#signer-greeting').textContent = `Hello ${signerName}, please review and sign below.`;
-    $('#typed-name').value = signerName;
-  } else {
-    $('#signer-greeting').textContent = 'Please review and sign below.';
+    $('#signer-greeting').textContent = `Hello ${signerName}`;
   }
   $('#loading').classList.add('hidden');
   $('#sign-form').classList.remove('hidden');
@@ -322,16 +268,8 @@
 
   // --- Form validation ---
   function updateSubmitState() {
-    const ready = hasDrawn
-      && $('#typed-name').value.trim().length > 0
-      && $('#cb-read').checked
-      && $('#cb-esign').checked;
-    $('#submit-btn').disabled = !ready;
+    $('#submit-btn').disabled = !hasDrawn;
   }
-
-  $('#typed-name').addEventListener('input', updateSubmitState);
-  $('#cb-read').addEventListener('change', updateSubmitState);
-  $('#cb-esign').addEventListener('change', updateSubmitState);
 
   // --- Submit with E2EE ---
   $('#submit-btn').addEventListener('click', async () => {
@@ -345,10 +283,6 @@
       // Build payload
       const payload = JSON.stringify({
         signatureImage: sigDataUrl,
-        typedName: $('#typed-name').value.trim(),
-        consentRead: true,
-        consentEsign: true,
-        authorizationTextHash: await sha256(authText),
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
       });
@@ -412,11 +346,6 @@
     $('#loading').classList.add('hidden');
     $('#error-message').textContent = msg;
     $('#error').classList.remove('hidden');
-  }
-
-  async function sha256(text) {
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
   function bufToBase64(buf) {

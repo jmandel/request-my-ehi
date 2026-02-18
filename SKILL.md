@@ -244,44 +244,41 @@ If the signature service is configured (check `scripts/config.json` -- `relayUrl
 1. **Create a session:**
 ```bash
 bun <skill-dir>/scripts/create-signature-session.ts \
-  --authorization-text "I, Jane Doe, authorize Example Health to release..." \
   --signer-name "Jane Doe" \
   --expiry-minutes 60
 ```
-Outputs JSON to stdout:
+Optionally pass `--instructions "Custom text"` to override the default instructions shown to the signer. Outputs JSON to stdout:
 ```json
 {
   "sessionId": "62ee3034-...",
   "signUrl": "https://relay.example.com/sign/62ee3034-...",
-  "privateKeyJwk": { "kty": "EC", "crv": "P-256", "d": "...", "x": "...", "y": "..." },
-  "authorizationTextHash": "3804bb36..."
+  "privateKeyJwk": { "kty": "EC", "crv": "P-256", "d": "...", "x": "...", "y": "..." }
 }
 ```
-Save all four fields. The `--authorization-text` can also read from a file with `@/tmp/auth-text.txt`.
+Save all three fields.
 
-2. **Share the `signUrl` with the patient.** It opens a mobile-friendly page where they review the authorization text, draw their signature, type their name, and confirm two consent checkboxes. Tell them what to expect on the page.
+2. **Share the `signUrl` with the patient.** It opens a mobile-friendly page where they draw their signature. Tell them what to expect on the page.
 
 3. **Poll for completion** (run in background while you continue preparing other steps):
 ```bash
 bun <skill-dir>/scripts/poll-signature.ts <session-id> '<private-key-jwk-json>' \
-  --output-dir /tmp --expected-hash <authorizationTextHash>
+  --output-dir /tmp
 ```
 This blocks until the patient signs (or the session expires). On success it writes:
 - `/tmp/signature.png` -- transparent-background PNG of the drawn signature
-- `/tmp/signature-metadata.json` -- typed name, timestamp, audit log
+- `/tmp/signature-metadata.json` -- timestamp, audit log
 
 And outputs JSON to stdout:
 ```json
 {
   "signaturePath": "/tmp/signature.png",
   "metadataPath": "/tmp/signature-metadata.json",
-  "typedName": "Jane Doe",
   "timestamp": "2026-02-18T18:05:00.000Z"
 }
 ```
-Progress goes to stderr. Exits with code 1 if the session expires or hash verification fails.
+Progress goes to stderr. Exits with code 1 if the session expires.
 
-4. **Embed the signature PNG** on the form using `page.drawImage()` as in Option B below.
+4. **Embed the signature PNG** directly on the form using `page.drawImage()` — it already has a transparent background, so no ImageMagick processing is needed. See Option B steps 2-4 for positioning guidance.
 
 ### Option B: Signature Image Upload
 
@@ -410,7 +407,7 @@ Also prepare them for potential pushback:
 | `list-form-fields.ts` | `bun list-form-fields.ts <pdf-path>` |
 | `generate-appendix.ts` | `bun generate-appendix.ts ['{"vendor": {...}}']` |
 | `fill-and-merge.ts` | `bun fill-and-merge.ts <config.json>` |
-| `create-signature-session.ts` | `bun create-signature-session.ts --authorization-text <text> [--signer-name <name>]` |
+| `create-signature-session.ts` | `bun create-signature-session.ts [--instructions <text>] [--signer-name <name>]` |
 | `poll-signature.ts` | `bun poll-signature.ts <session-id> '<private-key-jwk>'` |
 | `send-fax.ts` | `bun send-fax.ts <fax-number> <pdf-path>` |
 | `check-fax-status.ts` | `bun check-fax-status.ts <fax-id>` |

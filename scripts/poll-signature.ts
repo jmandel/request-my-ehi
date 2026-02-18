@@ -7,7 +7,6 @@
  *
  * Options:
  *   --output-dir <dir>          Output directory (default: /tmp)
- *   --expected-hash <hash>      Verify authorization text integrity
  *   --max-attempts <n>          Max poll attempts (default: 120)
  *   --poll-timeout <sec>        Long-poll timeout per attempt (default: 30)
  *
@@ -36,7 +35,6 @@ function getArg(name: string): string | undefined {
 }
 
 const outputDir = getArg('--output-dir') || '/tmp';
-const expectedHash = getArg('--expected-hash');
 const maxAttempts = parseInt(getArg('--max-attempts') || '120', 10);
 const pollTimeout = parseInt(getArg('--poll-timeout') || '30', 10);
 
@@ -113,14 +111,6 @@ for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 
     const payload = JSON.parse(new TextDecoder().decode(decrypted)) as any;
 
-    // Verify hash if expected
-    if (expectedHash && payload.authorizationTextHash !== expectedHash) {
-      console.error(`ERROR: Authorization text hash mismatch!`);
-      console.error(`  Expected: ${expectedHash}`);
-      console.error(`  Got:      ${payload.authorizationTextHash}`);
-      process.exit(1);
-    }
-
     // Write signature PNG
     const sigDataUrl = payload.signatureImage;
     const base64Data = sigDataUrl.replace(/^data:image\/png;base64,/, '');
@@ -130,9 +120,7 @@ for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 
     // Write metadata
     const metadata = {
-      typedName: payload.typedName,
       timestamp: payload.timestamp,
-      authorizationTextHash: payload.authorizationTextHash,
       auditLog: data.auditLog,
     };
     const metaPath = join(outputDir, 'signature-metadata.json');
@@ -143,7 +131,6 @@ for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     console.log(JSON.stringify({
       signaturePath: sigPath,
       metadataPath: metaPath,
-      typedName: payload.typedName,
       timestamp: payload.timestamp,
     }, null, 2));
 

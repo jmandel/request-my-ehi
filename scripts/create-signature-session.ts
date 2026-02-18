@@ -3,18 +3,20 @@
  * Create an E2EE signature session on the relay server.
  *
  * Usage:
- *   bun create-signature-session.ts [server-url] --authorization-text <text|@file> [options]
+ *   bun create-signature-session.ts [server-url] [options]
  *
  * Options:
- *   --authorization-text <text|@file>  Authorization text (required). Prefix with @ to read from file.
- *   --signer-name <name>              Pre-fill signer name (optional)
- *   --expiry-minutes <n>              Session expiry (default: 60)
+ *   --instructions <text|@file>   Instructions shown to signer (optional, has default)
+ *   --signer-name <name>          Pre-fill signer name (optional)
+ *   --expiry-minutes <n>          Session expiry (default: 60)
  *
  * Output (JSON to stdout):
- *   { sessionId, signUrl, privateKeyJwk, authorizationTextHash }
+ *   { sessionId, signUrl, privateKeyJwk }
  */
 import { readFileSync } from 'fs';
 import { resolveServerUrl } from './_resolve-server.ts';
+
+const DEFAULT_INSTRUCTIONS = 'Please draw your signature below. It will be placed on your health records request form.';
 
 const args = Bun.argv.slice(2);
 const serverUrl = resolveServerUrl(args[0]);
@@ -24,13 +26,9 @@ function getArg(name: string): string | undefined {
   return idx >= 0 && idx + 1 < args.length ? args[idx + 1] : undefined;
 }
 
-let authText = getArg('--authorization-text');
-if (!authText) {
-  console.error('Error: --authorization-text is required');
-  process.exit(1);
-}
-if (authText.startsWith('@')) {
-  authText = readFileSync(authText.slice(1), 'utf-8');
+let instructions = getArg('--instructions') || DEFAULT_INSTRUCTIONS;
+if (instructions.startsWith('@')) {
+  instructions = readFileSync(instructions.slice(1), 'utf-8');
 }
 
 const signerName = getArg('--signer-name');
@@ -46,23 +44,13 @@ const keyPair = await crypto.subtle.generateKey(
 const publicKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
 const privateKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
 
-// Hash the authorization text
-const hashBuf = await crypto.subtle.digest(
-  'SHA-256',
-  new TextEncoder().encode(authText)
-);
-const authorizationTextHash = Array.from(new Uint8Array(hashBuf))
-  .map(b => b.toString(16).padStart(2, '0'))
-  .join('');
-
 // Create session on server
 const res = await fetch(`${serverUrl}/api/signatures/sessions`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     publicKey: publicKeyJwk,
-    authorizationText: authText,
-    authorizationTextHash,
+    instructions,
     signerName,
     expiryMinutes,
   }),
@@ -80,5 +68,4 @@ console.log(JSON.stringify({
   sessionId: data.sessionId,
   signUrl: data.signUrl,
   privateKeyJwk,
-  authorizationTextHash,
 }, null, 2));

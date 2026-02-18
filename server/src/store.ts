@@ -16,8 +16,7 @@ export interface EncryptedPayload {
 export interface SignatureSession {
   id: string;
   publicKeyJwk: JsonWebKey;
-  authorizationText: string;
-  authorizationTextHash: string;
+  instructions: string;
   signerName?: string;
   status: "waiting" | "completed" | "expired";
   encryptedPayload?: EncryptedPayload;
@@ -81,8 +80,7 @@ setInterval(() => {
 
 export function createSession(params: {
   publicKeyJwk: JsonWebKey;
-  authorizationText: string;
-  authorizationTextHash: string;
+  instructions: string;
   signerName?: string;
   expiryMinutes?: number;
 }): SignatureSession {
@@ -91,8 +89,7 @@ export function createSession(params: {
   const session: SignatureSession = {
     id,
     publicKeyJwk: params.publicKeyJwk,
-    authorizationText: params.authorizationText,
-    authorizationTextHash: params.authorizationTextHash,
+    instructions: params.instructions,
     signerName: params.signerName,
     status: "waiting",
     createdAt: Date.now(),

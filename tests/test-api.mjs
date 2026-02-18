@@ -147,17 +147,12 @@ await test('signatures/sessions: creates a session', async () => {
   const publicKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
   privateKey = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
 
-  const authText = 'Test authorization text for signature';
-  const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(authText));
-  const authHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
-
   const res = await fetch(`${SERVER_URL}/api/signatures/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       publicKey: publicKeyJwk,
-      authorizationText: authText,
-      authorizationTextHash: authHash,
+      instructions: 'Please draw your signature below.',
       signerName: 'Test Signer',
     }),
   });
@@ -172,7 +167,7 @@ await test('signatures/sessions/:id/info: returns session info', async () => {
   const res = await fetch(`${SERVER_URL}/api/signatures/sessions/${sessionId}/info`);
   assert(res.ok, `Status ${res.status}`);
   const data = await res.json();
-  assert(data.authorizationText === 'Test authorization text for signature', 'authText mismatch');
+  assert(data.instructions === 'Please draw your signature below.', 'instructions mismatch');
   assert(data.signerName === 'Test Signer', 'signerName mismatch');
   assert(data.publicKeyJwk, 'Missing publicKeyJwk');
 });
@@ -247,20 +242,17 @@ await test('/sign/:sessionId: serves HTML for valid session', async () => {
   // Create a fresh session
   const keyPair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
   const publicKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
-  const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('test'));
-  const authHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
-
   const createRes = await fetch(`${SERVER_URL}/api/signatures/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ publicKey: publicKeyJwk, authorizationText: 'test', authorizationTextHash: authHash }),
+    body: JSON.stringify({ publicKey: publicKeyJwk, instructions: 'test' }),
   });
   const { sessionId: newId } = await createRes.json();
 
   const res = await fetch(`${SERVER_URL}/sign/${newId}`);
   assert(res.ok, `Status ${res.status}`);
   const html = await res.text();
-  assert(html.includes('Authorization Signature'), 'Missing expected content');
+  assert(html.includes('Draw Your Signature'), 'Missing expected content');
 });
 
 await test('/sign/:sessionId: 404 for invalid session', async () => {

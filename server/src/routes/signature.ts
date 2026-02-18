@@ -8,16 +8,15 @@ export const signatureRoutes = new Hono();
 // Create a new signature session
 signatureRoutes.post("/sessions", async (c) => {
   const body = await c.req.json();
-  const { publicKey, authorizationText, authorizationTextHash, signerName, expiryMinutes } = body;
+  const { publicKey, instructions, signerName, expiryMinutes } = body;
 
-  if (!publicKey || !authorizationText || !authorizationTextHash) {
-    return c.json({ error: "publicKey, authorizationText, and authorizationTextHash are required" }, 400);
+  if (!publicKey || !instructions) {
+    return c.json({ error: "publicKey and instructions are required" }, 400);
   }
 
   const session = createSession({
     publicKeyJwk: publicKey,
-    authorizationText,
-    authorizationTextHash,
+    instructions,
     signerName,
     expiryMinutes,
   });
@@ -44,7 +43,7 @@ signatureRoutes.get("/sessions/:id/info", (c) => {
 
   return c.json({
     publicKeyJwk: session.publicKeyJwk,
-    authorizationText: session.authorizationText,
+    instructions: session.instructions,
     signerName: session.signerName,
   });
 });
