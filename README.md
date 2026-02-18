@@ -61,10 +61,10 @@ Claude will recognize the intent and activate the skill. It will guide you throu
 4. Finding the provider's authorization form (or using the generic one)
 5. Finding the provider's fax/mailing address for submission
 6. Filling out the form programmatically
-7. Embedding your signature (if provided)
+7. Capturing an e-signature (via E2EE relay, image upload, or print-and-sign)
 8. Generating a vendor-specific appendix
 9. Merging into a final PDF
-10. Helping you actually submit the request
+10. Helping you actually submit the request (including fax via relay server)
 
 ## Files
 
@@ -72,15 +72,39 @@ Claude will recognize the intent and activate the skill. It will guide you throu
 request-my-ehi/
 ├── SKILL.md                              # Skill definition and instructions
 ├── scripts/
+│   ├── config.json                       # Relay server URL (set relayUrl here)
+│   ├── _resolve-server.mjs              # Shared helper: resolves server URL from config or CLI
 │   ├── lookup-vendor.mjs                 # Search the 71-vendor EHI database
 │   ├── generate-appendix.mjs             # Generate vendor-specific appendix PDF
 │   ├── list-form-fields.mjs              # Enumerate fields in any PDF form
-│   └── fill-and-merge.mjs                # Reference: fill form + merge with appendix
+│   ├── fill-and-merge.mjs                # Reference: fill form + merge with appendix
+│   ├── create-signature-session.mjs      # Create an E2EE signature capture session
+│   ├── poll-signature.mjs                # Poll for and decrypt a completed signature
+│   ├── send-fax.mjs                      # Send a PDF via the relay server fax outbox
+│   └── check-fax-status.mjs             # Check fax delivery status
+├── server/                               # Relay server (deployed separately)
+│   ├── src/                              # Bun + Hono server source
+│   ├── public/                           # sign.html, fax-outbox.html
+│   ├── Dockerfile
+│   └── package.json
 └── templates/
     ├── appendix.pdf                      # Pre-built Epic appendix (static)
     ├── appendix.html                     # HTML source for the appendix
     ├── authorization-form.pdf            # Generic fillable HIPAA authorization form
     └── authorization-form.html           # HTML source for the authorization form
+```
+
+## Relay Server
+
+The `server/` directory contains an optional relay server (Bun + Hono) that provides:
+
+- **E2EE Signature Capture** -- patient draws their signature on a mobile-friendly web page; encrypted in-browser with ECDH P-256 + AES-256-GCM before reaching the server
+- **Simulated Fax Outbox** -- faxes queue in-memory with a web UI for viewing PDFs and advancing delivery workflow
+
+The relay scripts (`create-signature-session`, `poll-signature`, `send-fax`, `check-fax-status`) read the server URL from `scripts/config.json`. Set `relayUrl` there after deploying.
+
+```bash
+cd server && bun install && bun run dev  # localhost:3000
 ```
 
 ## Legal Context

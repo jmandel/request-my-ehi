@@ -3,7 +3,6 @@ name: request-my-ehi
 description: Help a patient request their complete Electronic Health Information (EHI) Export from their healthcare provider. Supports Epic and 70+ other certified EHR vendors. Explains what EHI is, why it matters, identifies the provider's EHR system, generates a vendor-specific appendix, guides through gathering details, finding forms, and producing a ready-to-submit PDF package.
 argument-hint: [provider-name]
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch, WebSearch, Task
-license: Apache-2.0
 ---
 
 # Request My EHI Export
@@ -186,9 +185,7 @@ node <skill-dir>/scripts/list-form-fields.mjs /tmp/provider_form.pdf
 
 This will show each field's type, name, current value, and widget position (x, topY, width, height). Use this to understand the form's structure.
 
-### If the form has fillable fields (AcroForm)
-
-Write a script to fill the form using pdf-lib's form field API. Map fields intelligently:
+Then write a script to fill the form using pdf-lib's form field API. Map fields intelligently:
 
 - **Patient name fields**: Look for fields containing "name", "patient" -- note that field names are sometimes misleading (e.g., "Address" might actually be the patient name field if it's the first field at the top). Use widget positions to disambiguate.
 - **Date of birth**: Fields with "birth", "dob", "date of birth"
@@ -206,11 +203,57 @@ Always flatten the form after filling so fields render as static text.
 
 **Important**: Only include page 1 of the provider's form (skip "Additional Information" or "For Office Use Only" pages unless the patient specifically needs them).
 
-### If the form has NO fillable fields (flat/scanned PDF)
-
-**Do not attempt to draw text at guessed coordinates.** Coordinate-based drawing is fragile and produces unreliable results. Instead, fall back to the **generic authorization form** (`templates/authorization-form.pdf`) and fill it with the patient's details using the form field API -- exactly as described in Strategy B above. Let the patient know you're using a standard form because their provider's form isn't machine-fillable, and that providers are legally required to accept any valid HIPAA authorization.
-
 ## Step 7: Handle Signature
+
+There are three options for getting the patient's signature, in order of preference:
+
+### Option A: Live E2EE Signature Capture (Recommended)
+
+If the relay server is configured (check `scripts/config.json` -- `relayUrl` must be set), use encrypted live signature capture. The patient draws their signature on their phone or computer -- it's encrypted end-to-end so the server never sees the plaintext.
+
+1. **Create a session:**
+```bash
+node <skill-dir>/scripts/create-signature-session.mjs \
+  --authorization-text "I, Jane Doe, authorize Example Health to release..." \
+  --signer-name "Jane Doe" \
+  --expiry-minutes 60
+```
+Outputs JSON to stdout:
+```json
+{
+  "sessionId": "62ee3034-...",
+  "signUrl": "https://relay.example.com/sign/62ee3034-...",
+  "privateKeyJwk": { "kty": "EC", "crv": "P-256", "d": "...", "x": "...", "y": "..." },
+  "authorizationTextHash": "3804bb36..."
+}
+```
+Save all four fields. The `--authorization-text` can also read from a file with `@/tmp/auth-text.txt`.
+
+2. **Share the `signUrl` with the patient.** It opens a mobile-friendly page where they review the authorization text, draw their signature, type their name, and confirm two consent checkboxes. Tell them what to expect on the page.
+
+3. **Poll for completion** (run in background while you continue preparing other steps):
+```bash
+node <skill-dir>/scripts/poll-signature.mjs <session-id> '<private-key-jwk-json>' \
+  --output-dir /tmp --expected-hash <authorizationTextHash>
+```
+This blocks until the patient signs (or the session expires). On success it writes:
+- `/tmp/signature.png` -- transparent-background PNG of the drawn signature
+- `/tmp/signature-metadata.json` -- typed name, timestamp, audit log
+
+And outputs JSON to stdout:
+```json
+{
+  "signaturePath": "/tmp/signature.png",
+  "metadataPath": "/tmp/signature-metadata.json",
+  "typedName": "Jane Doe",
+  "timestamp": "2026-02-18T18:05:00.000Z"
+}
+```
+Progress goes to stderr. Exits with code 1 if the session expires or hash verification fails.
+
+4. **Embed the signature PNG** on the form using `page.drawImage()` as in Option B below.
+
+### Option B: Signature Image Upload
 
 Ask the patient if they have a signature image to embed. If they provide one:
 1. Make white pixels transparent: `convert input.png -fuzz 20% -transparent white /tmp/signature-transparent.png` (or use `magick` depending on the ImageMagick version available)
@@ -218,7 +261,9 @@ Ask the patient if they have a signature image to embed. If they provide one:
 3. Scale to approximately 28-30px height, positioned just above the signature label line
 4. Remove the PDF's signature form field (if any) so it doesn't overlay the image
 
-If they don't have a signature image, let them know they'll need to print the final PDF and sign by hand before submitting.
+### Option C: Print and Sign
+
+If they don't have a signature image and live capture isn't available, let them know they'll need to print the final PDF and sign by hand before submitting.
 
 ## Step 8: Generate the Appendix
 
@@ -265,11 +310,21 @@ The reference script at `scripts/fill-and-merge.mjs` shows the full pattern. Sav
 
 This is where many patients get stuck. Don't just hand them the PDF -- help them actually submit it.
 
-1. **Fax** (most common for medical records): If you found the fax number earlier, tell them exactly where to fax. Many online fax services work if they don't have a physical fax machine.
-2. **In person**: They can print and drop it off at the provider's medical records or HIM department.
-3. **Mail**: Provide the mailing address if known.
-4. **Patient portal**: Some providers accept ROI requests electronically -- check if this is an option.
-5. **Email**: Some providers accept scanned/emailed forms -- less common but worth mentioning.
+1. **Fax via relay server** (recommended if `relayUrl` is configured in `scripts/config.json`): If you found the provider's fax number, send the fax directly:
+```bash
+node <skill-dir>/scripts/send-fax.mjs "+15551234567" ./ehi-request-provider.pdf
+```
+Outputs JSON to stdout with `faxId`, `provider`, and `status` (initially `"queued"`). Check delivery status:
+```bash
+node <skill-dir>/scripts/check-fax-status.mjs <fax-id>
+```
+Returns `status` (`queued` | `sending` | `delivered` | `failed`), plus `pages`, `completedAt`, and `errorMessage` when applicable. The patient (or an operator) can also monitor progress at the relay server's `/fax-outbox` page.
+
+2. **Fax** (manual): If you found the fax number earlier, tell them exactly where to fax. Many online fax services work if they don't have a physical fax machine.
+3. **In person**: They can print and drop it off at the provider's medical records or HIM department.
+4. **Mail**: Provide the mailing address if known.
+5. **Patient portal**: Some providers accept ROI requests electronically -- check if this is an option.
+6. **Email**: Some providers accept scanned/emailed forms -- less common but worth mentioning.
 
 Also prepare them for potential pushback:
 - The records department may not be familiar with "EHI Export" -- the appendix explains it and points them to their vendor's documentation.
@@ -288,9 +343,11 @@ Also prepare them for potential pushback:
 
 ## Technical Notes
 
+- **Relay server URL**: All relay scripts (`create-signature-session`, `poll-signature`, `send-fax`, `check-fax-status`) read the server URL from `scripts/config.json` (`relayUrl` field). You can also pass a URL as the first argument to override. If `relayUrl` is empty and no argument is given, the scripts will error. Check `scripts/config.json` before using relay features -- if it's not configured, signature capture and fax sending won't work (fall back to Options B/C for signatures, and manual fax/mail for submission).
 - Use pdf-lib's form field API (not coordinate-based text drawing) wherever possible
 - Install pdf-lib if needed: `npm install --prefix /tmp pdf-lib`
 - The appendix is a static PDF (`templates/appendix.pdf`) with no patient-specific content -- just copy and merge it
 - The generic authorization form (`templates/authorization-form.pdf`) is a fillable PDF with these field names: `patientName`, `dob`, `phone`, `patientAddress`, `email`, `providerName`, `providerAddress`, `recipientName`, `recipientAddress`, `recipientEmail`, `ehiExport` (checkbox), `includeDocuments` (checkbox), `additionalDescription`, `purposePersonal` (checkbox), `purposeOther` (checkbox), `purposeOtherText`, `signature`, `signatureDate`
-- When the provider's form is not a fillable PDF (no AcroForm fields), do NOT attempt coordinate-based text drawing -- fall back to the generic authorization form instead
+- When the provider's form is not a fillable PDF (no AcroForm fields), fall back to coordinate-based text drawing using drawText, but prefer form fields when available
 - No browser engine (Chrome/Chromium) is required -- all PDFs are generated and manipulated with pdf-lib
+
