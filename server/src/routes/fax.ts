@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { createFaxJob, getFaxJob, getAllFaxJobs, updateFaxJobStatus } from "../store.ts";
 import { getFaxProvider, simulateStatusChange } from "../fax/index.ts";
+import { config } from "../config.ts";
 
 export const faxRoutes = new Hono();
 
@@ -43,7 +44,7 @@ faxRoutes.post("/send", async (c) => {
       to,
       fileBuffer,
       filename,
-      // No callback for now - we poll for status
+      callbackUrl: `${config.baseUrl}/api/fax/webhook`,
     });
     
     // Update job with provider info
@@ -98,23 +99,59 @@ faxRoutes.get("/status/:id", async (c) => {
   });
 });
 
-// Webhook for provider callbacks
+// Webhook for Sinch callbacks (multipart/form-data or JSON)
 faxRoutes.post("/webhook", async (c) => {
-  const body = await c.req.json();
-  console.log("[Fax Webhook]", JSON.stringify(body, null, 2));
+  console.log("[Fax Webhook] Received callback");
   
-  // Find job by provider fax ID
-  const jobs = getAllFaxJobs();
-  const job = jobs.find(j => (j as any).providerFaxId === body.id);
+  let faxData: any;
+  const contentType = c.req.header("content-type") || "";
   
-  if (job && body.status) {
-    const status = body.status.toLowerCase();
-    if (["queued", "sending", "delivered", "failed"].includes(status)) {
-      updateFaxJobStatus(job.id, status as any, body.errorMessage);
+  if (contentType.includes("multipart/form-data")) {
+    // Sinch sends multipart by default
+    const formData = await c.req.formData();
+    const faxJson = formData.get("fax");
+    if (faxJson && typeof faxJson === "string") {
+      faxData = JSON.parse(faxJson);
     }
+    console.log("[Fax Webhook] Multipart fax data:", faxData);
+  } else {
+    // JSON callback
+    const body = await c.req.json();
+    faxData = body.fax || body;
+    console.log("[Fax Webhook] JSON fax data:", faxData);
   }
   
-  return c.json({ received: true });
+  if (!faxData?.id) {
+    console.log("[Fax Webhook] No fax ID in callback");
+    return c.json({ received: true, processed: false });
+  }
+
+  // Find job by provider fax ID
+  const jobs = getAllFaxJobs();
+  const job = jobs.find(j => (j as any).providerFaxId === faxData.id);
+  
+  if (job) {
+    // Map Sinch status to our status
+    let status: "queued" | "sending" | "delivered" | "failed" = "queued";
+    switch (faxData.status) {
+      case "QUEUED": status = "queued"; break;
+      case "IN_PROGRESS": status = "sending"; break;
+      case "COMPLETED": status = "delivered"; break;
+      case "FAILURE": status = "failed"; break;
+    }
+    
+    console.log(`[Fax Webhook] Updating job ${job.id} to ${status}`);
+    updateFaxJobStatus(job.id, status, faxData.errorMessage);
+    
+    if (faxData.numberOfPages) {
+      job.pages = faxData.numberOfPages;
+    }
+    
+    return c.json({ received: true, processed: true, faxId: job.id });
+  }
+  
+  console.log(`[Fax Webhook] No matching job for provider fax ${faxData.id}`);
+  return c.json({ received: true, processed: false });
 });
 
 // List all fax jobs (for outbox UI)
