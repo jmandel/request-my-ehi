@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>request-my-ehi - Claude Code Skill</title>
+<title>request-my-ehi - AI Skill for Requesting Your Health Records</title>
 <style>
   :root { --blue: #1a3c5e; --light: #f7f8fa; --border: #e1e4e8; --text: #24292f; --muted: #57606a; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -12,11 +12,7 @@
 
   .hero { background: var(--blue); color: white; padding: 3rem 1.5rem; text-align: center; }
   .hero h1 { font-size: 2.2rem; margin-bottom: 0.5rem; font-weight: 700; letter-spacing: -0.02em; }
-  .hero p { font-size: 1.15rem; opacity: 0.9; max-width: 640px; margin: 0 auto 1.5rem; }
-  .hero .actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
-  .hero .btn { display: inline-block; padding: 0.65rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.95rem; }
-  .hero .btn-primary { background: white; color: var(--blue); }
-  .hero .btn-secondary { border: 1.5px solid rgba(255,255,255,0.5); color: white; }
+  .hero p { font-size: 1.15rem; opacity: 0.9; max-width: 640px; margin: 0 auto; }
 
   .container { max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem; }
 
@@ -27,6 +23,66 @@
   code { background: var(--light); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; }
   pre { background: var(--light); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; overflow-x: auto; margin: 0.75rem 0; }
   pre code { background: none; padding: 0; }
+
+  /* Copy widget */
+  .prompt-widget {
+    background: linear-gradient(135deg, #e8eef5 0%, #dce4ed 100%);
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    margin: 1.5rem 0;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+    border: 1px solid #c5d1de;
+  }
+  .prompt-widget:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(26, 60, 94, 0.15);
+  }
+  .prompt-widget:active {
+    transform: translateY(0);
+  }
+  .prompt-widget::before,
+  .prompt-widget::after {
+    content: '"';
+    font-size: 3rem;
+    color: #9eb3c8;
+    position: absolute;
+    font-family: Georgia, serif;
+    line-height: 1;
+  }
+  .prompt-widget::before { top: 0.5rem; left: 0.75rem; }
+  .prompt-widget::after { bottom: 0.25rem; right: 0.75rem; }
+  .prompt-widget p {
+    font-size: 1.05rem;
+    color: #2c4a62;
+    margin: 0;
+    padding: 0 1.5rem;
+    text-align: center;
+  }
+  .prompt-widget .url {
+    color: var(--blue);
+    word-break: break-all;
+  }
+  .prompt-widget .copy-hint {
+    display: block;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #6b8299;
+    margin-top: 0.75rem;
+  }
+  .prompt-widget.copied {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    border-color: #a3d9a5;
+  }
+  .prompt-widget.copied .copy-hint { color: #28a745; font-weight: 600; }
+
+  /* Getting started section */
+  .getting-started { background: var(--light); border-radius: 8px; padding: 1.5rem; margin: 1rem 0; border: 1px solid var(--border); }
+  .getting-started h3 { margin-top: 0; color: var(--blue); }
+  .getting-started ol { margin-bottom: 0; }
+  .getting-started li { margin-bottom: 0.4rem; }
+  .getting-started code { font-size: 0.85em; }
 
   .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin: 1rem 0; }
   .feature { background: var(--light); border-radius: 8px; padding: 1.25rem; border: 1px solid var(--border); }
@@ -47,14 +103,28 @@
 
 <div class="hero">
   <h1>request-my-ehi</h1>
-  <p>A Claude Code skill that helps patients request their complete Electronic Health Information export from any healthcare provider.</p>
-  <div class="actions">
-    <a href="skill.zip" class="btn btn-primary">Download skill.zip</a>
-    <a href="https://github.com/jmandel/request-my-ehi" class="btn btn-secondary">View on GitHub</a>
-  </div>
+  <p>An AI skill that helps patients request their complete Electronic Health Information export from any healthcare provider.</p>
 </div>
 
 <div class="container">
+
+<h2>Get Started</h2>
+
+<div class="prompt-widget" onclick="copyPrompt(this)">
+  <p>Please download the EHI Export skill from <span class="url">https://request-my-ehi.joshuamandel.com/skill.zip</span> and then help me request my full EHI Export.</p>
+  <span class="copy-hint">Click anywhere to copy</span>
+</div>
+
+<div class="getting-started">
+  <h3>Claude.ai Setup (one time)</h3>
+  <ol>
+    <li>Open <a href="https://claude.ai/settings/capabilities" target="_blank">Claude.ai Settings → Capabilities</a></li>
+    <li>Enable <code>Code execution and file creation</code></li>
+    <li>Enable <code>Allow network egress</code></li>
+    <li>For <strong>Domain allowlist</strong>, either choose <code>All domains</code>, or add <code>request-my-ehi.joshuamandel.com</code> under Additional allowed domains</li>
+    <li>Paste the prompt above into a new chat!</li>
+  </ol>
+</div>
 
 <h2>What is EHI Export?</h2>
 <p>Every certified EHR system in the US has been required to support <strong>single-patient EHI Export</strong> since December 31, 2023. This feature produces a bulk export of <em>all</em> structured data in your patient record -- far more complete than a CCDA, patient portal download, or standard records release.</p>
@@ -88,32 +158,11 @@
   <li>Find the provider's authorization form</li>
   <li>Find fax/mailing address for submission</li>
   <li>Fill out the form programmatically</li>
-  <li>Embed your signature (optional)</li>
+  <li>Capture your e-signature via secure relay</li>
   <li>Generate a vendor-specific appendix</li>
   <li>Merge into a ready-to-submit 2-page PDF</li>
-  <li>Help you actually submit the request</li>
+  <li>Submit via fax or guide you through mailing</li>
 </ol>
-
-<h2>Installation</h2>
-<h3>Option A: Git clone</h3>
-<pre><code>git clone https://github.com/jmandel/request-my-ehi.git ~/.claude/skills/request-my-ehi</code></pre>
-
-<h3>Option B: Download</h3>
-<p>Download <a href="skill.zip">skill.zip</a> and extract into <code>~/.claude/skills/</code>:</p>
-<pre><code>cd ~/.claude/skills && unzip ~/Downloads/skill.zip</code></pre>
-
-<h3>Prerequisites</h3>
-<ul>
-  <li><a href="https://claude.ai/code">Claude Code</a> CLI</li>
-  <li>Node.js >= 18</li>
-  <li>pdf-lib (installed automatically by the skill)</li>
-</ul>
-
-<h2>Usage</h2>
-<p>Just tell Claude Code what you need:</p>
-<pre><code>I need to request my complete medical records from Associated Physicians of Madison.</code></pre>
-<pre><code>Help me get my EHI export. My provider uses athenahealth.</code></pre>
-<pre><code>I want all my health data. My patient portal is at mychart.myhealthsystem.org.</code></pre>
 
 <h2>Supported Vendors</h2>
 <p>The skill includes a database of <strong>70+ certified EHR vendors</strong> with detailed export information -- product names, export formats, documentation URLs, entity/field counts, and quality grades. Vendors include Epic, athenahealth, Cerner/Oracle Health, NextGen, eClinicalWorks, Veradigm, Elation, DrChrono, and many more.</p>
@@ -125,11 +174,33 @@
   <p><strong>ONC Certification</strong> 170.315(b)(10) -- EHI Export required since December 31, 2023.</p>
 </div>
 
+<h2>For Developers</h2>
+<p>View the source, contribute, or install locally via the CLI:</p>
+<ul>
+  <li><a href="https://github.com/jmandel/request-my-ehi">GitHub Repository</a></li>
+  <li><a href="skill.zip">Direct skill.zip download</a></li>
+</ul>
+
 </div>
 
 <footer>
-  <p>Apache-2.0 License | <a href="https://github.com/jmandel/request-my-ehi">GitHub</a> | Built with <a href="https://claude.ai/code">Claude Code</a></p>
+  <p>Apache-2.0 License | <a href="https://github.com/jmandel/request-my-ehi">GitHub</a></p>
 </footer>
+
+<script>
+const PROMPT_TEXT = `Please download the EHI Export skill from https://request-my-ehi.joshuamandel.com/skill.zip and then help me request my full EHI Export.`;
+
+function copyPrompt(el) {
+  navigator.clipboard.writeText(PROMPT_TEXT).then(() => {
+    el.classList.add('copied');
+    el.querySelector('.copy-hint').textContent = 'Copied!';
+    setTimeout(() => {
+      el.classList.remove('copied');
+      el.querySelector('.copy-hint').textContent = 'Click anywhere to copy';
+    }, 2000);
+  });
+}
+</script>
 
 </body>
 </html>
