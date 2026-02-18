@@ -23,9 +23,6 @@ jobs:
       - name: Build skill.zip
         run: zip -r site/skill.zip SKILL.md scripts/ templates/ README.md LICENSE
 
-      - name: Copy site files
-        run: cp site/index.html site/skill.zip site/
-
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
