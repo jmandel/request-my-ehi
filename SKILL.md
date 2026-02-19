@@ -292,12 +292,9 @@ I authorize the release of my protected health information as described above.
 
 **Tips for high-fidelity transcription:**
 
-- **Preserve all original text** — Include section headers, instructions, legal language, and fine print exactly as they appear on the form
-- **Use tables for field/value pairs** — Makes alignment clean and professional
+- **Preserve all original text** — Include section headers, instructions, legal language, and fine print exactly as they appear
 - **Use `[x]` / `[ ]` for checkboxes** — Renders as `[X]` checked or `[ ]` unchecked
-- **Use blockquotes (`>`) for special callouts** — Good for the EHI Export description or legal notices
-- **Include horizontal rules (`---`)** — Helps separate sections visually
-- **Bold important values** — Use `**text**` to highlight filled-in patient data
+- **Use `>` for callouts** — Renders with a border box
 - **Match the original form's organization** — Same sections in same order
 
 **Step 2: Add the signature**
