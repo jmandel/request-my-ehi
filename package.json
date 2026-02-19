@@ -1,5 +1,7 @@
 {
   "dependencies": {
-    "pdf-lib": "^1.17.1"
+    "jspdf": "^4.1.0",
+    "pdf-lib": "^1.17.1",
+    "pdfmake": "^0.3.4"
   }
 }
