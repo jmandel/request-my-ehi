@@ -258,9 +258,10 @@ Look at the rendered form image and identify where each value should go. Forms v
 
 Key things to notice in the image:
 - **Where is the blank space?** That's where fill text goes — not on top of labels, sub-labels, or printed text.
+- **Right vs. below.** When you pick a label as an anchor, use the text positions to check whether there's more blank space to the **right** of the label or **below** it. If the label ends well before the next element on the same line (or the page edge), the fill area is to the right. If there's another text element close below, there may not be room underneath. Many forms have labels like "First & Last Name" at the left of a line with a long blank extending rightward — fill to the right, not below.
 - **Checkboxes** may render as small empty squares in the image. In the text positions output they often appear as unusual or unexpected characters rendered by unmapped font glyphs. Match them by position.
 - **Date fields** with separate segments (e.g., `___/___/___` or `____ / ____ / ____`) — fill each segment individually, not as one string.
-- **Font size in the output helps distinguish roles.** Section headers tend to be larger or bold. Sub-labels (descriptive text at the bottom of form cells like "Last", "Street", "Zip Code") tend to be smaller than the field labels above them. Fill text goes in the blank space above sub-labels, not on them.
+- **Font size in the output helps distinguish roles.** Section headers tend to be larger or bold. Sub-labels (descriptive text at the bottom of form cells) tend to be smaller than the field labels above them. Fill text goes in the blank space above sub-labels, not on them.
 
 Cross-reference the image with the text positions to get exact coordinates for your `drawText` calls.
 
