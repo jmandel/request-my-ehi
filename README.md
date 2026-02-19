@@ -4,13 +4,14 @@ A [Claude Code skill](https://agentskills.io) that helps patients request their 
 
 Every certified EHR system in the US has been required to support single-patient EHI Export since December 31, 2023 (ONC § 170.315(b)(10)). This feature produces a bulk export of all structured data in a patient's record -- far more complete than a CCDA, patient portal download, or standard records release. Most patients don't know it exists, and many providers haven't used it before.
 
-This skill walks the patient through the entire process: identifying their provider's EHR system, gathering their details, finding (or generating) the right authorization form, filling it out, attaching a detailed appendix explaining the request, and producing a ready-to-submit PDF package.
+This skill walks the patient through the entire process: identifying their provider's EHR system, gathering their details, finding (or generating) the right request form, filling it out, attaching a cover letter and detailed appendix explaining the request, and producing a ready-to-submit PDF package.
 
 ## What It Produces
 
-A 2-page PDF package:
-1. **Authorization form** -- either the provider's own ROI form (filled via pdf-lib's form field API) or a generic HIPAA-compliant fillable form
-2. **Appendix A** -- a one-page document explaining what EHI Export is, the legal basis, how the provider's IT team can produce it, and delivery preferences
+A 3-page PDF package:
+1. **Cover letter** (page 1) -- addresses the records department, explains this is a Right of Access request, and suggests routing to HIM/IT
+2. **Access request form** (page 2) -- either the provider's own ROI form (filled via pdf-lib's form field API) or a generic HIPAA-compliant access request form
+3. **Appendix A** (page 3) -- explains what EHI Export is, the legal basis, how the provider's IT team can produce it, and delivery preferences
 
 The appendix is customized per EHR vendor, citing the specific product name, export formats, documentation URL, and entity/field counts from a database of 70+ certified vendors.
 
@@ -58,12 +59,12 @@ Claude will recognize the intent and activate the skill. It will guide you throu
 1. Understanding your situation and explaining EHI Export
 2. Identifying your provider's EHR system
 3. Collecting your details (or extracting from an uploaded file like a FHIR Patient resource)
-4. Finding the provider's authorization form (or using the generic one)
+4. Finding the provider's request form (or using the generic one)
 5. Finding the provider's fax/mailing address for submission
 6. Filling out the form programmatically
 7. Capturing an e-signature (via E2EE relay, image upload, or print-and-sign)
-8. Generating a vendor-specific appendix
-9. Merging into a final PDF
+8. Generating a cover letter and vendor-specific appendix
+9. Merging into a final 3-page PDF
 10. Helping you actually submit the request (including fax via relay server)
 
 ## Files
@@ -76,8 +77,9 @@ request-my-ehi/
 │   ├── _resolve-server.ts              # Shared helper: resolves server URL from config or CLI
 │   ├── lookup-vendor.ts                 # Search the 71-vendor EHI database
 │   ├── generate-appendix.ts             # Generate vendor-specific appendix PDF
+│   ├── generate-cover-letter.ts         # Generate static cover letter PDF
 │   ├── list-form-fields.ts              # Enumerate fields in any PDF form
-│   ├── fill-and-merge.ts                # Reference: fill form + merge with appendix
+│   ├── fill-and-merge.ts                # Reference: fill form + merge with cover letter & appendix
 │   ├── create-signature-session.ts      # Create an E2EE signature capture session
 │   ├── poll-signature.ts                # Poll for and decrypt a completed signature
 │   ├── send-fax.ts                       # Send a PDF via fax API
@@ -89,9 +91,9 @@ request-my-ehi/
 │   └── package.json
 └── templates/
     ├── appendix.pdf                      # Pre-built Epic appendix (static)
-    ├── appendix.html                     # HTML source for the appendix
-    ├── authorization-form.pdf            # Generic fillable HIPAA authorization form
-    └── authorization-form.html           # HTML source for the authorization form
+    ├── authorization-form.pdf            # Generic fillable HIPAA access request form
+    ├── authorization-form.tex            # LaTeX source for the access request form
+    └── cover-letter.pdf                  # Pre-built static cover letter
 ```
 
 ## Relay Server

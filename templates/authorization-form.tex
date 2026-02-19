@@ -1,0 +1,189 @@
+% authorization-form.tex — Fillable PDF form for requesting access to PHI
+% Build with: pdflatex -interaction=nonstopmode authorization-form.tex
+\documentclass[12pt,letterpaper]{article}
+
+% ── Packages ─────────────────────────────────────────────────────────────────
+\usepackage[left=40bp,right=40bp,top=36bp,bottom=30bp]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+% ── Colors ───────────────────────────────────────────────────────────────────
+\definecolor{accent}{rgb}{0.102,0.235,0.369}   % navy
+\definecolor{bodytext}{rgb}{0.102,0.102,0.102}  % near-black
+\definecolor{subtle}{rgb}{0.35,0.35,0.35}       % gray labels
+\definecolor{linegray}{rgb}{0.6,0.6,0.6}        % field underlines
+
+% ── hyperref setup ───────────────────────────────────────────────────────────
+\hypersetup{
+  pdfborder={0 0 0},
+  colorlinks=false,
+}
+
+% Prevent hyperref from mangling field names with prefixes
+\makeatletter
+\let\HyField@AuxAddToFields\@gobble
+\makeatother
+
+% ── Global style ─────────────────────────────────────────────────────────────
+\color{bodytext}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+
+% ── Custom commands ──────────────────────────────────────────────────────────
+
+% Section header with colored underline
+\newcommand{\sectionheader}[1]{%
+  \vspace{6pt}%
+  {\fontsize{11.5}{14}\selectfont\bfseries\color{accent}#1}%
+  \par\vspace{1.5pt}%
+  {\color{accent}\hrule height 0.75pt}%
+  \vspace{4pt}%
+}
+
+% Field label (gray, small)
+\newcommand{\fieldlabel}[1]{%
+  {\fontsize{9}{11}\selectfont\color{subtle}#1}%
+  \par\vspace{1pt}%
+}
+
+% Full-width text field row: label + text field
+\newcommand{\textfieldrow}[2]{%
+  \fieldlabel{#1}%
+  \TextField[name=#2,width=\linewidth,height=14bp,borderwidth=0,%
+    bordercolor=,backgroundcolor=,charsize=10bp]{}%
+  \par\vspace{0.5pt}%
+  {\color{linegray}\hrule height 0.5pt}%
+  \vspace{3pt}%
+}
+
+% Half-width text field (for side-by-side layout)
+\newcommand{\halffield}[3]{%
+  \begin{minipage}[t]{#1}%
+    \fieldlabel{#2}%
+    \TextField[name=#3,width=\linewidth,height=14bp,borderwidth=0,%
+      bordercolor=,backgroundcolor=,charsize=10bp]{}%
+    \par\vspace{0.5pt}%
+    {\color{linegray}\hrule height 0.5pt}%
+  \end{minipage}%
+}
+
+% Checkbox with label
+\newcommand{\checkboxrow}[2]{%
+  \CheckBox[name=#1,width=11bp,height=11bp,borderwidth=0.75pt,%
+    bordercolor=linegray,backgroundcolor=]{%
+    \hspace{3pt}{\fontsize{10}{12}\selectfont\color{bodytext}#2}}%
+  \par\vspace{2pt}%
+}
+
+% ── Document ─────────────────────────────────────────────────────────────────
+\begin{document}
+\begin{Form}
+
+% ── Title Block ──────────────────────────────────────────────────────────────
+\begin{center}
+{\fontsize{16}{19}\selectfont\bfseries\color{accent}%
+Request for Access to Protected Health Information}\\[3pt]
+{\fontsize{9}{11}\selectfont\itshape\color{subtle}%
+Pursuant to the HIPAA Right of Access, 45 CFR \S~164.524}
+\end{center}
+
+\vspace{1pt}
+
+% ── Section 1: Patient Information ───────────────────────────────────────────
+\sectionheader{Section 1: Patient Information}
+
+\textfieldrow{Patient Name}{patientName}
+
+\halffield{0.487\linewidth}{Date of Birth}{dob}%
+\hfill
+\halffield{0.487\linewidth}{Phone}{phone}
+
+\vspace{3pt}
+
+\textfieldrow{Address (Street, City, State, ZIP)}{patientAddress}
+
+\textfieldrow{Email}{email}
+
+% ── Section 2: Provider ─────────────────────────────────────────────────────
+\sectionheader{Section 2: I Request Records From}
+
+\textfieldrow{Provider / Facility}{providerName}
+
+\textfieldrow{Provider Address}{providerAddress}
+
+% ── Section 3: Deliver To ───────────────────────────────────────────────────
+\sectionheader{Section 3: Deliver Records To}
+
+\textfieldrow{Recipient Name}{recipientName}
+
+\textfieldrow{Recipient Address}{recipientAddress}
+
+\textfieldrow{Recipient Email}{recipientEmail}
+
+{\fontsize{8}{10}\selectfont\itshape\color{subtle}%
+If requesting records for yourself, enter your own name and address above.}
+
+\vspace{1pt}
+
+% ── Section 4: Information Requested ─────────────────────────────────────────
+\sectionheader{Section 4: Information Requested}
+
+\checkboxrow{ehiExport}{Complete Electronic Health Information (EHI) Export}
+
+\checkboxrow{includeDocuments}{All associated documents and images}
+
+\vspace{1pt}
+\textfieldrow{Additional Description / See Appendix A if attached}{additionalDescription}
+
+% ── Section 5: Acknowledgment ────────────────────────────────────────────────
+\sectionheader{Section 5: Acknowledgment}
+
+{\fontsize{9}{11}\selectfont\color{bodytext}%
+I understand that I may withdraw this request in writing at any time, except to the
+extent it has already been fulfilled. A photocopy or electronic copy of this request
+is as valid as the original.%
+}
+
+\vspace{4pt}
+
+% ── Section 6: Signature ────────────────────────────────────────────────────
+\sectionheader{Section 6: Signature}
+
+\noindent
+\begin{minipage}[t]{0.65\linewidth}%
+  \TextField[name=signature,width=\linewidth,height=24bp,borderwidth=0,%
+    bordercolor=,backgroundcolor=,charsize=12bp]{}%
+  \par\vspace{0.5pt}%
+  {\color{linegray}\hrule height 0.5pt}%
+  \vspace{2pt}%
+  {\fontsize{9}{11}\selectfont\color{subtle}Signature of Patient or Personal Representative}%
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.28\linewidth}%
+  \TextField[name=signatureDate,width=\linewidth,height=14bp,borderwidth=0,%
+    bordercolor=,backgroundcolor=,charsize=10bp]{}%
+  \par\vspace{0.5pt}%
+  {\color{linegray}\hrule height 0.5pt}%
+  \vspace{2pt}%
+  {\fontsize{9}{11}\selectfont\color{subtle}Date}%
+\end{minipage}
+
+\vspace{5pt}
+
+\fieldlabel{If signed by representative: describe authority (e.g., parent, guardian, POA)}
+\TextField[name=representativeAuth,width=\linewidth,height=15bp,borderwidth=0,%
+  bordercolor=,backgroundcolor=,charsize=10bp]{}%
+\par\vspace{0.5pt}%
+{\color{linegray}\hrule height 0.5pt}%
+
+% ── Footer ───────────────────────────────────────────────────────────────────
+\vfill
+\begin{center}
+{\fontsize{7.5}{9}\selectfont\itshape\color{subtle}%
+This form is a request for access under 45 CFR \S~164.524 (HIPAA Right of Access).}
+\end{center}
+
+\end{Form}
+\end{document}

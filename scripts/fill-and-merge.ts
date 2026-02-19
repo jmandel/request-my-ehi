@@ -10,6 +10,7 @@
  * {
  *   "formPath": "/tmp/provider_form.pdf",
  *   "appendixPath": "/tmp/appendix.pdf",
+ *   "coverLetterPath": "/tmp/cover-letter.pdf",  (optional)
  *   "outputPath": "./ehi-request-complete.pdf",
  *   "signaturePath": "/tmp/signature-transparent.png",  (optional)
  *   "patient": {
@@ -65,9 +66,6 @@ interface FieldMappings {
   recipientCityStateZip?: string;
   email?: string;
   date?: string;
-  purposePersonal?: string;
-  purposeOther?: string;
-  otherText?: string;
   includeImages?: string;
   ehiExport?: string;
 }
@@ -87,6 +85,7 @@ interface PhiDescriptionPosition {
 interface Config {
   formPath: string;
   appendixPath: string;
+  coverLetterPath?: string;
   outputPath: string;
   signaturePath?: string;
   patient: Patient;
@@ -104,7 +103,7 @@ if (!configPath) {
 
 const configFile = Bun.file(configPath);
 const config: Config = await configFile.json();
-const { formPath, appendixPath, outputPath, signaturePath, patient, provider, fieldMappings, signaturePosition } = config;
+const { formPath, appendixPath, coverLetterPath, outputPath, signaturePath, patient, provider, fieldMappings, signaturePosition } = config;
 
 // Load the provider's form
 const formBytes = await Bun.file(formPath).arrayBuffer();
@@ -141,21 +140,18 @@ setText(fieldMappings.patientStreet, patient.street);
 setText(fieldMappings.patientCityStateZip, patient.cityStateZip);
 setText(fieldMappings.phone, patient.phone);
 
-// Fill provider info (Section 2: I authorize)
+// Fill provider info (Section 2: I request records from)
 setText(fieldMappings.providerName, provider.name);
 setText(fieldMappings.providerStreet, provider.street);
 setText(fieldMappings.providerCityStateZip, provider.cityStateZip);
 
-// Fill recipient info (Section 3: Release to -- patient themselves)
+// Fill recipient info (Section 3: Deliver to -- patient themselves)
 setText(fieldMappings.recipientName, `${patient.name} (myself)`);
 setText(fieldMappings.recipientStreet, patient.street);
 setText(fieldMappings.recipientCityStateZip, patient.cityStateZip);
 setText(fieldMappings.email, patient.email);
 
-// Fill purpose
-checkBox(fieldMappings.purposePersonal);
-checkBox(fieldMappings.purposeOther);
-setText(fieldMappings.otherText, 'See Appendix A');
+// Check information requested boxes
 checkBox(fieldMappings.includeImages);
 checkBox(fieldMappings.ehiExport);
 
@@ -198,16 +194,36 @@ if (signaturePath && existsSync(signaturePath) && signaturePosition) {
   console.log(`Signature placed on page ${sigPageIndex + 1} at (${signaturePosition.x || 60}, ${signaturePosition.topY || 686})`);
 }
 
+// Update checkbox appearances before flattening — pdf-lib's flatten() can't
+// extract appearance refs from pdflatex-generated checkboxes, so we force
+// pdf-lib to regenerate them in its own format first.
+for (const field of form.getFields()) {
+  try {
+    const cb = form.getCheckBox(field.getName());
+    cb.updateAppearances();
+  } catch {
+    // Not a checkbox — skip
+  }
+}
+
 // Flatten form
 form.flatten();
 const filledBytes = await doc.save();
 await Bun.write('/tmp/provider_form_filled.pdf', filledBytes);
 
-// Merge: page 1 of form + appendix
+// Merge: cover letter (if provided) + page 1 of form + appendix
 const filledDoc = await PDFDocument.load(filledBytes);
 const appendixBytes = await Bun.file(appendixPath).arrayBuffer();
 const appendixDoc = await PDFDocument.load(appendixBytes);
 const merged = await PDFDocument.create();
+
+// Add cover letter as page 1 if provided
+if (coverLetterPath && existsSync(coverLetterPath)) {
+  const coverBytes = await Bun.file(coverLetterPath).arrayBuffer();
+  const coverDoc = await PDFDocument.load(coverBytes);
+  const coverPages = await merged.copyPages(coverDoc, coverDoc.getPageIndices());
+  for (const p of coverPages) merged.addPage(p);
+}
 
 const [formPage1] = await merged.copyPages(filledDoc, [0]);
 merged.addPage(formPage1);

@@ -17,6 +17,8 @@ cd <skill-dir>/scripts && bun install
 
 This installs `pdf-lib` for PDF generation/manipulation. All scripts in this skill use **Bun** (not Node.js).
 
+The `pdf-text-positions.ts` script also requires `pdftohtml` from **poppler-utils** (`apt install poppler-utils`).
+
 **Script usage pattern:**
 ```bash
 bun <skill-dir>/scripts/<script-name>.ts [arguments]
@@ -44,8 +46,9 @@ This skill supports **Epic** and **70+ other certified EHR vendors**. You can id
 ## What You're Producing
 
 A **ready-to-submit PDF package** consisting of:
-1. An authorization/release form filled out with the patient's details -- ideally the provider's own ROI form, or our generic HIPAA-compliant authorization if the provider's form isn't available
-2. An appendix (page 2) explaining what EHI Export is, the legal basis, and step-by-step instructions for the provider's IT team to produce it
+1. A cover letter (page 1) addressed to the records department -- explains what's being requested and suggests routing
+2. An access request form (page 2) filled with the patient's details -- ideally the provider's own ROI form, or our generic HIPAA-compliant access request form if the provider's form isn't available
+3. An appendix (page 3) explaining what EHI Export is, legal basis, and how to produce it
 
 ## Step 1: Identify the Provider
 
@@ -122,11 +125,11 @@ You need:
 
 If they provide a FHIR Patient resource or similar file, extract all details from it. Confirm the details with the patient before proceeding.
 
-## Step 4: Find and Obtain an Authorization Form
+## Step 4: Find and Obtain a Request Form
 
-Using the provider's own ROI (Release of Information) form is ideal -- it reduces friction because the records department recognizes their own paperwork. But it's not required. HIPAA just requires a valid written authorization with specific elements (45 CFR 164.508). If you can't find the provider's form, use our generic authorization template instead.
+Using the provider's own ROI (Release of Information) form reduces friction -- staff recognize their own paperwork and are more likely to process it without pushback. Always attempt the provider's form first, whether it has fillable fields or not. But it's not required. HIPAA requires that the patient put the request in writing if the covered entity asks (45 CFR § 164.524(b)(1)). If you can't find the provider's form, use our generic access request template instead.
 
-### Strategy A: Find the provider's own form
+### Finding the provider's form
 
 Help the patient get this form through multiple approaches:
 
@@ -150,22 +153,29 @@ Download the PDF form to `/tmp/provider_form.pdf`.
 bun <skill-dir>/scripts/list-form-fields.ts /tmp/provider_form.pdf
 ```
 
-If the form has **zero fields** (common with scanned/image-based PDFs), **use Strategy B instead**. Coordinate-based text drawing on flat PDFs is fragile and produces unreliable results. The generic template is equally valid under HIPAA and produces cleaner output.
+### Decision flow
 
-**Decision tree:**
-- Provider form found **with AcroForm fields** → use provider form (Strategy A) with form field API
-- Provider form found **without AcroForm fields** → use generic template (Strategy B) with form field API
-- Provider form **not found** → use generic template (Strategy B)
+```
+Found provider's form?
+├── Yes, has fillable AcroForm fields
+│   └── Fill via form field API (reliable) → flatten → visual check → proceed
+├── Yes, flat/scanned PDF (no fields)
+│   └── Fill via coordinate-based drawText → visual check → review with user
+│       ├── User approves → proceed
+│       ├── User flags problems → agent adjusts and retries (up to 2 rounds)
+│       ├── User wants to fill it themselves → provide blank form for manual fill
+│       └── Still not right → fall back to generic form
+└── No form found
+    └── Use generic form (fillable fields, always clean)
+```
 
-### Strategy B: Use the generic authorization form
+### The generic access request form
 
-If the provider's own form can't be found, use the generic fillable PDF at `templates/authorization-form.pdf`. This is a proper interactive PDF form with labeled fields that any user could open and fill in a standard PDF reader. It frames the request as an exercise of the HIPAA Right of Access (45 CFR § 164.524) while also satisfying all elements of an authorization under § 164.508 — so it works regardless of which workflow the provider uses internally. It includes:
+If the provider's own form can't be found (or as a fallback from a flat PDF), use the generic fillable PDF at `templates/authorization-form.pdf`. This is a proper interactive PDF form with labeled fields that any user could open and fill in a standard PDF reader. It frames the request as an exercise of the HIPAA Right of Access (45 CFR § 164.524). It includes:
 - Description of information to be disclosed
-- Who is authorized to make the disclosure
-- Who the disclosure is to
-- Purpose of the disclosure
-- Expiration date or event
-- Patient's right to revoke
+- Who the request is directed to
+- Who the records should be delivered to
+- Acknowledgment
 - Signature and date
 
 To use it programmatically, copy it to `/tmp/provider_form.pdf` and fill it with pdf-lib's form field API -- the same approach used for provider forms:
@@ -178,7 +188,7 @@ form.getCheckBox('ehiExport').check();
 form.flatten();
 ```
 
-The generic form is clean and professional. Let the patient know you're using a standard authorization form and explain that providers are legally required to accept any valid HIPAA authorization -- they cannot insist on their own form.
+The generic form is clean and professional. Let the patient know you're using a standard access request form and explain that providers must accept any written request for access -- they cannot insist on their own form.
 
 ### Either way, also suggest the patient:
 - Call the provider's medical records department to confirm the best way to submit
@@ -193,14 +203,9 @@ While searching for the form, also look for the provider's **medical records / H
 
 Note these for the delivery guidance at the end.
 
-## Step 6: Fill the Authorization Form
+## Step 6: Fill the Request Form
 
-If you used the **generic authorization template** (Strategy B), skip ahead to Step 7 (signature). The generic form has proper fillable fields and will be filled programmatically using the same form field API.
-
-**When falling back to the generic template because the provider's form wasn't fillable**, explain to the patient:
-> "Your provider's form wasn't digitally fillable (it appears to be a scanned image), so I'm using a standard HIPAA-compliant authorization form instead. This is legally equivalent — providers are required to accept any valid authorization that meets the requirements of 45 CFR § 164.508. They cannot insist on their own form."
-
-If you're working with the **provider's own fillable PDF form** (Strategy A with AcroForm fields), continue below.
+### Filling a provider form with AcroForm fields
 
 Use the reference script to enumerate all form fields:
 ```bash
@@ -214,11 +219,10 @@ Then write a script to fill the form using pdf-lib's form field API. Map fields 
 - **Patient name fields**: Look for fields containing "name", "patient" -- note that field names are sometimes misleading (e.g., "Address" might actually be the patient name field if it's the first field at the top). Use widget positions to disambiguate.
 - **Date of birth**: Fields with "birth", "dob", "date of birth"
 - **Address fields**: "street", "address", "city", "state", "zip"
-- **Provider/facility fields** (the "I authorize" section): Fill with the provider's own name and address
-- **Recipient fields** (the "Release to" section): Fill with the patient's name and address (they are requesting their own records), appending "(myself)" to the name
+- **Provider/facility fields** (the "I request records from" section): Fill with the provider's own name and address
+- **Recipient fields** (the "Deliver to" section): Fill with the patient's name and address (they are requesting their own records), appending "(myself)" to the name
 - **Email/fax fields**: Patient's email
 - **PHI description**: Write "See Appendix A (attached)" -- use drawText if no form field exists for this area
-- **Purpose checkboxes**: Check "Personal" and/or "Other" (with text "See Appendix A"). Determine checkbox purpose by examining widget positions relative to form layout.
 - **Include Images**: Check if available
 - **Date fields**: Today's date
 - **Signature**: Handle in the next step
@@ -226,6 +230,94 @@ Then write a script to fill the form using pdf-lib's form field API. Map fields 
 Always flatten the form after filling so fields render as static text.
 
 **Important**: Only include page 1 of the provider's form (skip "Additional Information" or "For Office Use Only" pages unless the patient specifically needs them).
+
+### Filling a flat/scanned provider form (coordinate-based drawing)
+
+When the provider's form has no fillable fields, use coordinate-based `drawText` to place text on the page.
+
+#### Step 1: Extract text positions
+
+Run the text position script to dump every text element with its bounding box:
+```bash
+bun <skill-dir>/scripts/pdf-text-positions.ts /tmp/provider_form.pdf
+```
+
+This outputs one line per text span with `[left,top,right,bottom]` coordinates in PDF points (top-left origin, 612×792 for letter). For example:
+```
+=== page 1 612×792 ===
+[34,97,101,106] Patient Name:
+[100,96,455,106]  _________________________________________________________
+[456,97,482,106] DOB:
+[485,96,546,106] ___/___/___
+```
+
+Labels, blanks, checkboxes, and boilerplate all appear as text spans with positions. If underscore runs are present, their bounding boxes are useful for positioning — place fill text centered vertically and horizontally within the underscore region. Garbled/replacement characters (e.g. `�`) typically indicate checkboxes.
+
+#### Step 2: Map fields and place text
+
+Use the extracted positions to build a field map, then draw text with `drawText`. For checkboxes, place a checkmark (`\u2713`) centered in the glyph's bounding box.
+
+Remember that `drawText` uses bottom-left origin, so convert Y: `y = pageHeight - top`.
+
+#### Coordinate-based drawing tips
+
+These guidelines help maximize legibility:
+
+**Sizing and font:**
+- Use a standard font (Helvetica or Times-Roman) at 10-11pt for most fields. Go to 9pt only if space is very tight.
+- Never go below 8pt -- it becomes unreadable when printed or faxed.
+- Use a consistent font size across all fields on the form. Mixing sizes looks unprofessional.
+- Use dark blue (`rgb(0, 0, 0.6)`) for filled text and checkmarks. This distinguishes entered data from the form's printed black text, matching the convention of filling forms in blue ink.
+
+**Positioning:**
+- Place text **just above** the field's underline, not on it. A baseline offset of ~4pt above the line works well.
+- For fields with a label to the left (e.g., "Patient Name: ___________"), start the text where the underline begins, not where the label ends. Add a small left margin (~4pt) so text doesn't crowd the label.
+- For checkboxes, draw an X using two `drawLine` calls centered in the checkbox box. Don't use `drawText('\u2713', ...)` — pdf-lib's standard fonts (WinAnsi encoding) cannot encode the checkmark character.
+- For date fields with separate segments (e.g., `___/___/___`), draw each piece (month, day, year) individually centered in its segment rather than writing the full date as one string.
+
+**Multi-line and wrapping:**
+- If a value is too long for the field width, reduce font size by 1pt and try again. If it still doesn't fit, truncate with ellipsis rather than overflowing into adjacent fields.
+- For address fields, if street + city + state + zip won't fit on one line, look for whether the form has a second address line. If not, use a smaller font before wrapping.
+
+**Common pitfalls:**
+- PDF coordinate systems have origin at bottom-left, not top-left. The `pdf-text-positions.ts` script outputs top-left origin coordinates, but `drawText` uses bottom-up Y. Always convert: `y = pageHeight - top`.
+- Scanned PDFs sometimes have slightly rotated pages. If text looks tilted relative to the form lines, the page may have a non-zero rotation -- check `page.getRotation()` and adjust.
+- Different PDF producers embed fonts differently. Always embed the font explicitly rather than relying on what's in the PDF.
+
+### Pre-render checklist
+
+Before rendering the filled form, verify each item:
+
+- [ ] **Date segments**: Fields like `___/___/___` — each piece (month, day, year) drawn in its own slot, not as one string
+- [ ] **Checkbox marks**: Use `drawLine` X marks, not `drawText('\u2713')` (standard fonts can't encode it)
+- [ ] **Baseline alignment**: `y = pageHeight - bottom + 2` (anchor to bottom of text element, not top)
+- [ ] **Label clearance**: Fill text on shared lines (Name/Phone, Address/City/State/Zip) doesn't overlap the label text
+- [ ] **Font size**: ≥ 8pt minimum, consistent across fields, ≤ 11pt
+- [ ] **Ink color**: Dark blue `rgb(0, 0, 0.6)` to distinguish from printed black text
+- [ ] **Coordinate origin**: `pdf-text-positions.ts` outputs top-left origin; `drawText` uses bottom-left — convert Y
+
+### Visual review loop
+
+After filling the provider's form (whether via form fields or coordinate drawing), you must:
+
+1. **Render the filled PDF to an image** and visually inspect the result.
+2. **Check for problems:** overlapping text, misalignment, text outside field boundaries, unreadable small text, checkmarks in wrong positions.
+3. **If the form used coordinate-based drawing**, show the rendered image to the user and specifically ask: *"I've filled out your provider's form -- does the text alignment look right to you? If anything is misaligned or hard to read, let me know and I'll adjust. You also have the option of filling out the blank form yourself, or I can use a standard access request form instead."*
+4. **If the user flags problems**, adjust coordinates and retry. Allow up to two rounds of adjustment.
+5. **If it's still not right after two rounds**, offer two options:
+   - Provide the blank provider form for the user to fill out manually (print and handwrite, or fill in their own PDF editor)
+   - Fall back to the generic access request form, which uses fillable fields and will always be clean
+
+### What to say to the user
+
+**When attempting the provider's form (coordinate-based):**
+> "I found your provider's records release form. It's not digitally fillable, so I'm placing your information on it as accurately as I can. I'll show you the result so you can check it looks good before we finalize."
+
+**When showing the result for review:**
+> "Here's the filled form -- take a look at the text placement. Does everything line up with the fields? If anything looks off, I can adjust it. Or if you'd prefer, you can fill out the blank form yourself, or I can use a clean standard form instead."
+
+**When falling back to generic:**
+> "I wasn't able to get clean results on your provider's form, so I'm using a standard HIPAA access request form instead. This is equally valid -- providers are required to accept any written request that meets the requirements of the HIPAA Right of Access."
 
 ## Step 7: Handle Signature
 
@@ -291,20 +383,42 @@ Ask the patient if they have a signature image to embed. If they provide one:
 
 If they don't have a signature image and live capture isn't available, let them know they'll need to print the final PDF and sign by hand before submitting.
 
-## Step 8: Generate the Appendix
+## Step 8: Generate the Cover Letter and Appendix
 
-The appendix contains no patient-specific information -- it explains what an EHI Export is, the legal basis, how to produce it, and delivery preferences.
+### Cover Letter
 
-### For Epic providers
+The cover letter includes the patient's name and DOB (for identification if pages separate) and routes the request to the right team. Generate it with:
 
-Use the pre-built static PDF at `templates/appendix.pdf`. Just copy it to `/tmp/appendix.pdf`.
+```bash
+bun <skill-dir>/scripts/generate-cover-letter.ts '{
+  "patientName": "Jane Doe",
+  "dob": "03/15/1985",
+  "outputPath": "/tmp/cover-letter.pdf"
+}'
+```
 
-### For non-Epic providers
+The `patientName` and `dob` fields are optional (the script produces a generic version without them), but you should always include them when patient info is available. The `date` field defaults to today if omitted.
+
+A pre-built generic version (without patient info) exists at `templates/cover-letter.pdf` as a fallback.
+
+### Appendix
+
+The appendix contains no patient-specific information -- it explains what an EHI Export is, the legal basis, how to produce it, and delivery preferences. It accepts an optional `date` parameter to add a self-orienting reference line ("Accompanies Request for Access to PHI dated ...").
+
+#### For Epic providers
+
+For the quickest path, copy the pre-built `templates/appendix.pdf` to `/tmp/appendix.pdf`. To include the date reference line, regenerate:
+```bash
+bun <skill-dir>/scripts/generate-appendix.ts '{"date": "02/18/2026", "outputPath": "/tmp/appendix.pdf"}'
+```
+
+#### For non-Epic providers
 
 Generate a vendor-specific appendix using the `scripts/generate-appendix.ts` script. Pass the vendor details from Step 2:
 
 ```bash
 bun <skill-dir>/scripts/generate-appendix.ts '{
+  "date": "02/18/2026",
   "vendor": {
     "developer": "athenahealth, Inc.",
     "product_name": "athenaClinicals",
@@ -321,16 +435,18 @@ This generates `/tmp/appendix.pdf` with:
 - The vendor's official EHI documentation URL in the reference table
 - Export format details (CSV, NDJSON, etc.) and entity/field counts
 - Vendor-appropriate delivery language (MyChart for Epic, generic for others)
+- A footer reference line tying the appendix to the dated request
 
 All fields are optional -- the script gracefully falls back to generic language for any missing details.
 
 ## Step 9: Merge into Final Package
 
 Use pdf-lib to merge:
-1. Page 1 of the filled provider form
-2. The appendix PDF (1 page)
+1. The cover letter (1 page)
+2. Page 1 of the filled provider form
+3. The appendix PDF (1 page)
 
-The reference script at `scripts/fill-and-merge.ts` shows the full pattern. Save the final 2-page PDF to the working directory with a descriptive name like `ehi-request-[provider].pdf`.
+The reference script at `scripts/fill-and-merge.ts` shows the full pattern (pass `coverLetterPath` in the config). Save the final 3-page PDF to the working directory with a descriptive name like `ehi-request-[provider].pdf`.
 
 **⚠️ Verify signature placement:** After generating the PDF with a signature:
 1. Use a PDF-to-image tool or your environment's screenshot capability to visually inspect the signature location
@@ -394,8 +510,8 @@ Also prepare them for potential pushback:
 - **Service URL**: Scripts for signatures and faxing (`create-signature-session.ts`, `poll-signature.ts`, `send-fax.ts`, `check-fax-status.ts`) read the server URL from `scripts/config.json` (`relayUrl` field). You can also pass a URL as the first argument to override. Note: Use patient-friendly language ("electronic signature", "send the fax") -- avoid technical jargon like "relay server" when communicating with the patient.
 - Use pdf-lib's form field API (not coordinate-based text drawing) wherever possible
 - The appendix is a static PDF (`templates/appendix.pdf`) with no patient-specific content -- just copy and merge it
-- The generic authorization form (`templates/authorization-form.pdf`) is a fillable PDF (19 fields) with these field names: `patientName`, `dob`, `phone`, `patientAddress`, `email`, `providerName`, `providerAddress`, `recipientName`, `recipientAddress`, `recipientEmail`, `ehiExport` (checkbox), `includeDocuments` (checkbox), `additionalDescription`, `purposePersonal` (checkbox), `purposeOther` (checkbox), `purposeOtherText`, `signature`, `signatureDate`, `representativeAuth`. The form is generated by `scripts/build-authorization-form.ts` and satisfies both 45 CFR § 164.524 (Right of Access, primary basis) and § 164.508 (Authorization, belt-and-suspenders).
-- When the provider's form is not a fillable PDF (no AcroForm fields), **prefer using the generic authorization template** (Strategy B) instead of coordinate-based text drawing. The generic template produces cleaner, more reliable output via the form field API, and is equally valid under HIPAA. Reserve coordinate-based `drawText` only as a last resort when neither the provider's fillable form nor the generic template is suitable
+- The generic access request form (`templates/authorization-form.pdf`) is a fillable PDF (16 fields) with these field names: `patientName`, `dob`, `phone`, `patientAddress`, `email`, `providerName`, `providerAddress`, `recipientName`, `recipientAddress`, `recipientEmail`, `ehiExport` (checkbox), `includeDocuments` (checkbox), `additionalDescription`, `signature`, `signatureDate`, `representativeAuth`. The form is generated by `scripts/build-authorization-form.ts` and is a Right of Access request under 45 CFR § 164.524.
+- When the provider's form is not a fillable PDF (no AcroForm fields), use the calibration grid approach described in Step 6 to fill it via coordinate-based drawing. If coordinate-based results aren't clean after review with the user, fall back to the generic access request template which uses fillable fields and is equally valid under HIPAA
 - No browser engine (Chrome/Chromium) is required -- all PDFs are generated and manipulated with pdf-lib
 
 ### Script Reference
@@ -405,6 +521,7 @@ Also prepare them for potential pushback:
 | `lookup-vendor.ts` | `bun lookup-vendor.ts <search-term>` |
 | `list-form-fields.ts` | `bun list-form-fields.ts <pdf-path>` |
 | `generate-appendix.ts` | `bun generate-appendix.ts ['{"vendor": {...}}']` |
+| `generate-cover-letter.ts` | `bun generate-cover-letter.ts ['{"outputPath": "..."}']` |
 | `fill-and-merge.ts` | `bun fill-and-merge.ts <config.json>` |
 | `create-signature-session.ts` | `bun create-signature-session.ts [--instructions <text>] [--signer-name <name>]` |
 | `poll-signature.ts` | `bun poll-signature.ts <session-id> '<private-key-jwk>'` |

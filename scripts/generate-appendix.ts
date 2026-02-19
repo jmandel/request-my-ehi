@@ -43,6 +43,7 @@ interface VendorConfig {
 
 interface Config {
   vendor?: VendorConfig;
+  date?: string;
   outputPath?: string;
 }
 
@@ -51,6 +52,7 @@ interface Config {
 // ---------------------------------------------------------------------------
 const config: Config = Bun.argv[2] ? JSON.parse(Bun.argv[2]) : {};
 const vendor = config.vendor || null;
+const requestDate = config.date || null;
 const outputPath = config.outputPath || '/tmp/appendix.pdf';
 
 const isEpic = !vendor;
@@ -164,7 +166,7 @@ let y = PAGE_H - MT;
 // --- Title ---
 { const t = 'APPENDIX A'; const tw = hb.widthOfTextAtSize(t, TITLE_SIZE);
   page.drawText(t, { x: (PAGE_W - tw) / 2, y, size: TITLE_SIZE, font: hb, color: DARK_BLUE }); y -= 16; }
-{ const t = 'Description of Protected Health Information Requested'; const tw = ho.widthOfTextAtSize(t, SUBTITLE_SIZE);
+{ const t = 'Detailed Description of Health Information Requested'; const tw = ho.widthOfTextAtSize(t, SUBTITLE_SIZE);
   page.drawText(t, { x: (PAGE_W - tw) / 2, y, size: SUBTITLE_SIZE, font: ho, color: GRAY }); y -= 18; }
 
 page.drawLine({ start: { x: ML, y }, end: { x: PAGE_W - MR, y }, thickness: 0.75, color: DARK_BLUE });
@@ -312,8 +314,14 @@ if (isEpic) {
   bullet('Please provide the export electronically \u2014 via your patient portal, secure download link, encrypted USB drive, or encrypted email. I am happy to coordinate logistics.');
 }
 bullet('**Please do not substitute** a CCDA, patient summary, or portal download. I am specifically requesting the **full EHI Export** as certified under ONC \u00A7 170.315(b)(10).');
-bullet('**Do not encrypt patient identifiers** in my copy \u2014 since this is my own data, please provide unencrypted IDs so the export is usable.');
 bullet('Under HIPAA, you must act on this request **within 30 days** (with one 30-day extension if you notify me in writing).');
+
+// ── Footer reference line ──
+if (requestDate) {
+  const refLine = `Accompanies Request for Access to PHI dated ${requestDate}`;
+  const refW = ho.widthOfTextAtSize(refLine, 8);
+  page.drawText(refLine, { x: (PAGE_W - refW) / 2, y: 24, size: 8, font: ho, color: GRAY });
+}
 
 // ── Save ──
 const bytes = await doc.save();
