@@ -479,7 +479,7 @@ Progress goes to stderr. Exits with code 1 if the session expires.
 Ask the patient if they have a signature image to embed. If they provide one:
 1. Make white pixels transparent: `convert input.png -fuzz 20% -transparent white ./signature-transparent.png` (or use `magick` depending on the ImageMagick version available)
 2. Embed the transparent PNG on the signature line using `page.drawImage()`
-3. Scale to fit the signature line — aim for roughly 150–200 points wide and 30–50 points tall (PDF points, 72 per inch), preserving aspect ratio. Position just above the signature label line.
+3. Scale to 0.7 inches (50 PDF points) tall, preserving aspect ratio, positioned just above the signature label line.
 4. Remove the PDF's signature form field (if any) so it doesn't overlay the image
 
 ### Option C: Print and Sign

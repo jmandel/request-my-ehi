@@ -437,11 +437,10 @@ export class MdPdf {
         if (src) {
           try {
             const props = this.doc.getImageProperties(src);
-            const maxW = CONTENT_WIDTH;
-            const maxH = 50;
-            const scale = Math.min(maxW / props.width, maxH / props.height);
-            const w = props.width * scale;
-            const h = props.height * scale;
+            const targetH = 50; // ~0.7 inches (50pt at 72pt/inch)
+            const scale = targetH / props.height;
+            const w = Math.min(props.width * scale, CONTENT_WIDTH);
+            const h = targetH;
             this.newPageIfNeeded(h + 10);
             this.doc.addImage(src, MARGIN, this.y, w, h);
             this.y += h + 10;
