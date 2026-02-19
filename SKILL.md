@@ -240,11 +240,12 @@ When the provider's form has no fillable fields, transcribe it to markdown with 
 Create a markdown file that reproduces the form's structure and content with the patient's information filled in. **Start with a note explaining the transcription:**
 
 ```markdown
-> **Note to Health Information Management:** Your authorization form does not
-> support accessible electronic completion. Pursuant to 45 CFR § 164.524(b)(1),
-> covered entities may not impose unreasonable measures on individuals requesting
-> access that serve as barriers. This document faithfully reproduces all content
-> from your form with the required information completed.
+> **Note to Medical Records Department:** Your authorization form is a non-fillable
+> PDF (it lacks interactive form fields), which prevents electronic completion.
+> Pursuant to 45 CFR § 164.524(b)(1), covered entities may not impose unreasonable
+> measures that serve as barriers to individuals requesting access. This document
+> faithfully reproduces all content from your authorization form with the required
+> information completed.
 
 ---
 
