@@ -171,10 +171,11 @@ Found provider's form?
 
 **Signs a form needs markdown transcription (not just field filling):**
 - Zero fillable fields (completely flat/scanned)
-- Missing field for signature (very common)
 - Missing fields for key patient info (name, DOB, address)
 - Fields exist but are too small or poorly placed
 - Mix of fillable and hand-write-only sections
+
+**Exception:** If signature is the only missing field, fill the other fields via API, then add the signature image by coordinates (signature placement is forgiving - bottom of form near a signature line).
 
 ### The generic access request form
 
