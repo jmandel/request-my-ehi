@@ -47,23 +47,21 @@ A **ready-to-submit PDF package** consisting of:
 1. An authorization/release form filled out with the patient's details -- ideally the provider's own ROI form, or our generic HIPAA-compliant authorization if the provider's form isn't available
 2. An appendix (page 2) explaining what EHI Export is, the legal basis, and step-by-step instructions for the provider's IT team to produce it
 
-## Step 1: Understand the Patient's Situation
+## Step 1: Identify the Provider
 
-Start by understanding where the patient is in the process:
-- Do they know which provider they want to request from?
-- Have they requested records before? Do they know what they got (probably a CCDA)?
-- Are they comfortable with the process, or do they need more explanation about what EHI is and why it's different?
+**Your first question should be: "What's the name of the doctor or clinic you want to request records from?"** A website or patient portal URL is also great if they have one.
 
-Be ready to explain things in plain language. Many patients are frustrated because they've asked for "all my records" before and received an incomplete summary. Validate that experience and explain how the EHI Export addresses it.
+Don't ask about EHR systems, vendors, or technical details -- that's your job to figure out, not the patient's. If the patient already told you the provider name (e.g., as an argument when invoking the skill), skip ahead.
+
+Be ready to explain things in plain language if the patient has questions. Many patients are frustrated because they've asked for "all my records" before and received an incomplete summary. Validate that experience and explain how the EHI Export addresses it.
 
 ## Step 2: Identify the EHR Vendor
 
-Figure out which EHR system the provider uses. This determines the vendor-specific details in the appendix (export format, documentation URL, entity counts, etc.).
+Once you know the provider, figure out which EHR system they use. This determines the vendor-specific details in the appendix (export format, documentation URL, entity counts, etc.). **Do this research yourself -- don't ask the patient what EHR their doctor uses.**
 
 ### How to identify the vendor
 
-1. **Ask the patient** -- they may know (e.g., "we use Epic" or "we use athena")
-2. **Check their patient portal URL** -- the portal domain often reveals the vendor:
+1. **Check their patient portal URL** (if the patient provided one) -- the domain often reveals the vendor:
    - `mychart.*` or `*.epic.com` → Epic
    - `*.athenahealth.com` or `*.athenanet.athenahealth.com` → athenahealth
    - `*.eclinicalworks.com` → eClinicalWorks
@@ -74,8 +72,9 @@ Figure out which EHR system the provider uses. This determines the vendor-specif
    - `*.kareo.com` → Kareo/Tebra
    - `*.advancedmd.com` → AdvancedMD
    - `*.modmed.com` → Modernizing Medicine
-3. **Search the web** for `"[provider name]" EHR` or `"[provider name]" "electronic health record"` or `"[provider name]" "patient portal"`
-4. **Check CHPL** (ONC Certified Health IT Product List) if needed
+2. **Search the web** for `"[provider name]" EHR` or `"[provider name]" "electronic health record"` or `"[provider name]" "patient portal"`
+3. **Check CHPL** (ONC Certified Health IT Product List) if needed
+4. **Ask the patient as a last resort** -- they may know (e.g., "we use Epic" or "we use athena")
 
 ### Look up vendor details
 
@@ -106,7 +105,7 @@ If the vendor has an analysis report, fetch it to learn:
 
 ### If you can't identify the vendor
 
-If the patient doesn't know and you can't determine the vendor, default to generic language in the appendix. The legal requirements are the same regardless of vendor -- every certified EHR must support EHI Export.
+If you can't determine the vendor from web searches, ask the patient if they happen to know. If not, default to generic language in the appendix. The legal requirements are the same regardless of vendor -- every certified EHR must support EHI Export.
 
 ## Step 3: Gather Patient Details
 
