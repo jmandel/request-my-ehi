@@ -17,7 +17,7 @@ cd <skill-dir>/scripts && bun install
 
 This installs `pdf-lib` for PDF generation/manipulation. All scripts in this skill use **Bun** (not Node.js).
 
-The `pdf-text-positions.ts` script also requires `pdftohtml` from **poppler-utils** (`apt install poppler-utils`).
+Coordinate-based form filling requires `pdftohtml` and `pdftoppm` from **poppler-utils** (`apt install poppler-utils`).
 
 **Script usage pattern:**
 ```bash
@@ -162,17 +162,16 @@ Found provider's form?
 ├── Yes, has fillable AcroForm fields
 │   └── Fill via form field API (reliable) → flatten → visual check → proceed
 ├── Yes, flat/scanned PDF (no fields)
-│   └── Extract text positions with pdf-text-positions.ts
-│       └── Fill via coordinate-based drawText → visual check → review with user
-│           ├── User approves → proceed
-│           ├── User flags problems → agent adjusts and retries (up to 2 rounds)
-│           ├── User wants to fill it themselves → provide blank form for manual fill
-│           └── Still not right → fall back to generic form
+│   └── Fill via coordinate-based drawText using pdf-lib → visual check → review with user
+│       ├── User approves → proceed
+│       ├── User flags problems → agent adjusts and retries (up to 2 rounds)
+│       ├── User wants to fill it themselves → coach them to use a PDF editor and re-upload
+│       └── Still not right → fall back to generic form
 └── No form found
     └── Use generic form (fillable fields, always clean)
 ```
 
-**⚠️ IMPORTANT: When the form has 0 fillable fields, do NOT skip straight to the generic form.** The provider's own form reduces friction with records staff. First attempt coordinate-based filling using `pdf-text-positions.ts` to extract text positions, then draw text at those coordinates. Only fall back to the generic form if coordinate-based filling fails after review with the user (or if no provider form was found at all).
+**⚠️ IMPORTANT: When the form has 0 fillable fields, do NOT skip straight to the generic form.** The provider's own form reduces friction with records staff. First attempt coordinate-based filling using pdf-lib as described below. Only fall back to the generic form if coordinate-based filling fails after review with the user (or if no provider form was found at all).
 
 ### The generic access request form
 
@@ -238,66 +237,58 @@ Always flatten the form after filling so fields render as static text.
 
 ### Filling a flat/scanned provider form (coordinate-based drawing)
 
-When the provider's form has no fillable fields, use coordinate-based `drawText` to place text on the page.
+When the provider's form has no fillable fields, use pdf-lib to draw text, checkmarks, and images directly onto the PDF by coordinate.
 
-#### Step 1: Extract text positions and render the blank form
-
-Run both of these before writing any fill code:
-```bash
-bun <skill-dir>/scripts/pdf-text-positions.ts /tmp/provider_form.pdf
-pdftoppm -png -r 200 -singlefile /tmp/provider_form.pdf /tmp/provider_form_blank
-```
-
-The text positions output gives you every text span with `[left,top,right,bottom]` coordinates in PDF points (top-left origin, 612×792 for letter), plus font size and bold/italic style. The image shows you the visual layout — boxes, lines, whitespace, and how elements relate spatially.
-
-**Use both together.** The text positions tell you WHERE things are in coordinate space. The image tells you what the form actually looks like — where the blank spaces are, what's a label vs. a sub-label, where boxes and lines are drawn. Don't try to infer layout from text positions alone.
-
-#### Step 2: Reason about placement from the image
-
-Look at the rendered form image and identify where each value should go. Forms vary widely — some use underscores, some use boxed grids with sub-labels, some use simple blank lines, and many mix styles. Rather than following rigid rules, look at where a human would write with a pen and place your text there.
-
-Key things to notice in the image:
-- **Where is the blank space?** That's where fill text goes — not on top of labels, sub-labels, or printed text.
-- **Find the fill area for each label.** For each label you need to fill, look at the space in all directions — above, to the right, and below. The fill area could be any of these depending on the form layout. Use the image to see where a line, box, or blank area indicates where a human would write, and use the text positions to confirm there's no other text already occupying that space. Compare the size of the available space in each direction — a small gap below a label doesn't mean "fill below" if there's a large blank area or line extending to the right.
-- **Checkboxes** may render as small empty squares in the image. In the text positions output they often appear as unusual or unexpected characters rendered by unmapped font glyphs. Match them by position.
-- **Date fields** with separate segments (e.g., `___/___/___` or `____ / ____ / ____`) — fill each segment individually, not as one string.
-- **Font size in the output helps distinguish roles.** Section headers tend to be larger or bold. Sub-labels (descriptive text at the bottom of form boxes) tend to be smaller than the field labels above them. Fill text goes in the blank space above sub-labels, not on them.
-
-Cross-reference the image with the text positions to get exact coordinates for your `drawText` calls.
-
-#### Step 3: Fill using fill-form.ts
-
-Use `fill-form.ts` to place text and checkmarks. Provide approximate positions — the script automatically avoids overlapping existing content.
+#### Step 1: Render the blank form and extract coordinates
 
 ```bash
-echo '{
-  "inputPdf": "/tmp/provider_form.pdf",
-  "outputPdf": "/tmp/provider_form_filled.pdf",
-  "fills": [
-    { "text": "Jane Doe", "x": 130, "y": 119, "page": 1 },
-    { "text": "01/01/1990", "x": 490, "y": 119, "page": 1, "fontSize": 11 },
-    { "check": true, "x": 50, "y": 365, "page": 1 }
-  ]
-}' | bun <skill-dir>/scripts/fill-form.ts
+pdftoppm -png -r 200 /tmp/provider_form.pdf /tmp/provider_form_blank
+pdftohtml -xml -zoom 1 -stdout /tmp/provider_form.pdf > /tmp/provider_form.xml
 ```
 
-**Fill types:**
-- `{ "text": "...", "x", "y", "page", "fontSize" }` — text fill, nudged to avoid overlaps. `fontSize` defaults to 10, `page` to 1.
-- `{ "check": true, "x", "y", "page" }` — draws an X mark at the exact position (no nudging).
-- `{ "image": "/path/to/img.png", "x", "y", "width", "height", "page" }` — embeds a PNG/JPEG (e.g. signature) at exact position. `width`/`height` default to image's natural dimensions.
+Look at the rendered image(s) to understand the form layout. Use the XML output from `pdftohtml` to calibrate your coordinates — it gives you exact `top`, `left`, `width`, `height` values for every text element on the page in PDF points (top-left origin, 612×792 for standard letter).
 
-Coordinates are PDF points, top-left origin (same as `pdf-text-positions.ts`). Target the label position; the script finds adjacent free space.
+The image at 200 DPI is ~1700×2200 pixels. To convert image pixel positions to PDF points: multiply by 612/1700 ≈ 0.36.
 
-Output: The filled PDF is written to `outputPdf`. A standalone creation script is written to `{outputPdf}.creation-script.ts` and printed to stdout. The creation script is a runnable `.ts` file with all the `drawText`/`drawLine`/`drawImage` calls at their final resolved coordinates — read it, edit positions if needed, and re-run with `bun` to regenerate the PDF.
+#### Step 2: Write a fill script
 
-#### Step 4: Render and verify
+Write a short bun/TypeScript script using pdf-lib to place your fills. Use your best judgment for positioning — aim for the blank spaces where a human would write, not on top of labels. The XML coordinates help you understand exactly where existing text is, so you can place fills adjacent to labels.
 
-Render the filled PDF to an image and visually inspect:
+```typescript
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+
+const doc = await PDFDocument.load(await Bun.file("/tmp/provider_form.pdf").arrayBuffer());
+const font = await doc.embedFont(StandardFonts.Helvetica);
+const INK = rgb(0, 0, 0.6);
+const pages = doc.getPages();
+const page = pages[0];
+const H = page.getSize().height; // 792 for letter
+
+// Text: x,y are in PDF points, top-left origin. Convert to pdf-lib bottom-left:
+page.drawText("Jane Doe", { x: 130, y: H - 169 - 10, size: 10, font, color: INK });
+page.drawText("01/01/1990", { x: 100, y: H - 230 - 10, size: 10, font, color: INK });
+
+// Checkbox (draw an X):
+const cx = 54, cy = H - 369;
+for (const [dx1,dy1,dx2,dy2] of [[-3.5,-3.5,3.5,3.5],[-3.5,3.5,3.5,-3.5]])
+  page.drawLine({ start:{x:cx+dx1,y:cy+dy1}, end:{x:cx+dx2,y:cy+dy2}, thickness:1.5, color:INK });
+
+await Bun.write("/tmp/provider_form_filled.pdf", await doc.save());
+```
+
+**Coordinate tips:**
+- pdf-lib uses bottom-left origin. Convert from top-left: `y_pdflib = pageHeight - y_top - fontSize`
+- Standard letter page: 612 × 792 PDF points
+- Use the XML `<text top="..." left="...">` values to know exactly where labels are, then offset your fills accordingly (e.g., to the right of a label, or just below a header line)
+- Font size 10 works for most form fields; use 8 for tight spaces
+
+#### Step 3: Render and verify
+
 ```bash
 pdftoppm -png -r 200 -singlefile /tmp/provider_form_filled.pdf /tmp/provider_form_filled
 ```
 
-Check that fill text lands in blank spaces (not on labels/sub-labels), checkmarks land in checkbox squares, and nothing overlaps. If anything is off, edit the creation script (adjust coordinates) and re-run it with `bun`.
+Look at the result. If text is misaligned, overlapping labels, or landing outside field boundaries, adjust coordinates in your script and re-run. Iterate until it looks right.
 
 ### Visual review loop
 
@@ -305,10 +296,10 @@ After filling the provider's form (whether via form fields or coordinate drawing
 
 1. **Render the filled PDF to an image** and visually inspect the result.
 2. **Check for problems:** overlapping text, misalignment, text outside field boundaries, unreadable small text, checkmarks in wrong positions.
-3. **If the form used coordinate-based drawing**, show the rendered image to the user and specifically ask: *"I've filled out your provider's form -- does the text alignment look right to you? If anything is misaligned or hard to read, let me know and I'll adjust. You also have the option of filling out the blank form yourself, or I can use a standard access request form instead."*
-4. **If the user flags problems**, edit the creation script (`.creation-script.ts`) to adjust coordinates and re-run it. Allow up to two rounds of adjustment.
+3. **If the form used coordinate-based drawing**, show the rendered image to the user and specifically ask: *"I've filled out your provider's form -- does the text alignment look right to you? If anything is misaligned or hard to read, let me know and I'll adjust."*
+4. **If the user flags problems**, adjust coordinates and re-run. Allow up to two rounds of adjustment.
 5. **If it's still not right after two rounds**, offer two options:
-   - Provide the blank provider form for the user to fill out manually (print and handwrite, or fill in their own PDF editor)
+   - Coach the user to fill out the blank form themselves using a free PDF editor (e.g., Adobe Acrobat Reader, Mac Preview, or a browser's built-in PDF viewer) and re-upload the filled version
    - Fall back to the generic access request form, which uses fillable fields and will always be clean
 
 ### What to say to the user
@@ -317,10 +308,13 @@ After filling the provider's form (whether via form fields or coordinate drawing
 > "I found your provider's records release form. It's not digitally fillable, so I'm placing your information on it as accurately as I can. I'll show you the result so you can check it looks good before we finalize."
 
 **When showing the result for review:**
-> "Here's the filled form -- take a look at the text placement. Does everything line up with the fields? If anything looks off, I can adjust it. Or if you'd prefer, you can fill out the blank form yourself, or I can use a clean standard form instead."
+> "Here's the filled form -- take a look at the text placement. Does everything line up with the fields? If anything looks off, I can adjust it. Or if you'd prefer, you can fill out the blank form yourself using a free PDF editor (like Adobe Acrobat Reader, Mac Preview, or your browser's PDF viewer) and send it back to me."
 
 **When falling back to generic:**
 > "I wasn't able to get clean results on your provider's form, so I'm using a standard HIPAA access request form instead. This is equally valid -- providers are required to accept any written request that meets the requirements of the HIPAA Right of Access."
+
+**When coaching the user to fill manually:**
+> "If you'd rather fill this out yourself, here's the blank form. You can print it and fill it in by hand, or use a PDF annotation tool (like Adobe Acrobat Reader or Mac Preview) to add text on top. Then scan or save it and share it back with me — I'll include it in your request package."
 
 ## Step 7: Handle Signature
 
@@ -514,7 +508,7 @@ Also prepare them for potential pushback:
 - Use pdf-lib's form field API (not coordinate-based text drawing) wherever possible
 - The appendix is a static PDF (`templates/appendix.pdf`) with no patient-specific content -- just copy and merge it
 - The generic access request form (`templates/authorization-form.pdf`) is a fillable PDF (16 fields) with these field names: `patientName`, `dob`, `phone`, `patientAddress`, `email`, `providerName`, `providerAddress`, `recipientName`, `recipientAddress`, `recipientEmail`, `ehiExport` (checkbox), `includeDocuments` (checkbox), `additionalDescription`, `signature`, `signatureDate`, `representativeAuth`. The form is generated by `scripts/build-authorization-form.ts` and is a Right of Access request under 45 CFR § 164.524.
-- **When the provider's form has no fillable fields (0 AcroForm fields), do NOT skip to the generic form.** First run `pdf-text-positions.ts` to extract text coordinates, then fill via coordinate-based drawing as described in Step 6. Only fall back to the generic form after coordinate-based filling has been tried and the user rejects the result
+- **When the provider's form has no fillable fields (0 AcroForm fields), do NOT skip to the generic form.** Use pdf-lib with coordinate-based drawing as described in Step 6. Use `pdftohtml -xml` output for coordinate calibration. Only fall back to the generic form after coordinate-based filling has been tried and the user rejects the result
 - No browser engine (Chrome/Chromium) is required -- all PDFs are generated and manipulated with pdf-lib
 
 ### Script Reference
