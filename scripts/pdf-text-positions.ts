@@ -38,6 +38,8 @@ for (const page of xml.matchAll(/<page number="(\d+)"[^>]*height="(\d+)" width="
       hints.push("← checkbox");
     if (/_{10,}/.test(text) && !/\//.test(text)) hints.push(`← fill area (${+m[3]}pt wide)`);
     if (/\ufffd/.test(text) && text.length > 3) hints.push("← garbled glyphs may be checkboxes");
+    if (/^(Last|First|MI|Middle|City|State|Zip\s*Code?|Street|Phone|Date of Birth|DOB|Apt|SSN|Sex|Gender)\b/i.test(text.trim()) && +m[4] <= 12)
+      hints.push("← sub-label (Pattern B): fill text goes ABOVE this, not here");
 
     console.log(`${bbox} ${text}${hints.length ? "  " + hints.join("; ") : ""}`);
   }

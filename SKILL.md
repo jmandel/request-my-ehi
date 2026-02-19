@@ -288,7 +288,15 @@ The `pdf-text-positions.ts` output directly shows where underscores are. Place f
 │   Street (include Apt#, if applicable)                  │ ← sub-label (do NOT fill here)
 └─────────────────────────────────────────────────────────┘
 ```
-In the text positions output, sub-labels like "Last", "First", "MI", "City", "State", "Zip Code", "Street (include Apt#...)" appear below the fill zone. If you draw text at the sub-label's y-position, it will land on top of the sub-label text. Instead, place fill text roughly halfway between the field label and the sub-label.
+In the text positions output, sub-labels like "Last", "First", "MI", "City", "State", "Zip Code", "Street (include Apt#...)" appear below the fill zone. If you draw text at the sub-label's y-position, it will land on top of the sub-label text. Instead, use the sub-label's coordinates to compute a fill position **above** it:
+
+```
+// Sub-label "Last" is at [left, top, right, bottom] in pdf-text-positions output.
+// Place fill text ~12-16pt above the sub-label's top edge.
+const fillY = pageHeight - (subLabelTop - 14);
+```
+
+The exact offset depends on the cell height. Render the blank form and verify that fill text sits in the blank area between the field label and the sub-label — not overlapping either one.
 
 **How to tell which pattern you're looking at:** Inspect the rendered image. If you see horizontal lines with text above them, it's Pattern A (underscores). If you see a grid of boxes with small descriptive text at the bottom of each cell, it's Pattern B (boxed cells). Many forms mix both patterns.
 
@@ -309,8 +317,8 @@ These guidelines help maximize legibility:
 - Use dark blue (`rgb(0, 0, 0.6)`) for filled text and checkmarks. This distinguishes entered data from the form's printed black text, matching the convention of filling forms in blue ink.
 
 **Positioning:**
-- Place text **just above** the field's underline, not on it. A baseline offset of ~4pt above the line works well.
-- For fields with a label to the left (e.g., "Patient Name: ___________"), start the text where the underline begins, not where the label ends. Add a small left margin (~4pt) so text doesn't crowd the label.
+- **Pattern A (underscore fields):** Place text **just above** the field's underline, not on it. A baseline offset of ~4pt above the line works well. For fields with a label to the left (e.g., "Patient Name: ___________"), start the text where the underline begins, not where the label ends. Add a small left margin (~4pt) so text doesn't crowd the label.
+- **Pattern B (boxed cells with sub-labels):** Place text **well above** the sub-label text. Sub-labels ("Last", "First", "City", "State", "Zip Code", "Street") sit at the bottom of each cell. Your fill text must go ~12-16pt higher than the sub-label's top coordinate — in the blank space in the middle of the cell. If text overlaps a sub-label, you're too low.
 - For checkboxes, draw an X using two `drawLine` calls centered in the checkbox box. Don't use `drawText('\u2713', ...)` — pdf-lib's standard fonts (WinAnsi encoding) cannot encode the checkmark character.
 - For date fields with separate segments (e.g., `___/___/___`), draw each piece (month, day, year) individually centered in its segment rather than writing the full date as one string.
 
