@@ -68,13 +68,17 @@ function extractDrawOps(pdfBuffer: Buffer): DrawOp[] {
         const y = parseFloat(posMatch?.[2] || tmMatch?.[2] || "0");
         const text = textMatch[1];
         
-        // Font size 9pt: ascent ~7pt, descent ~2pt
+        // Font size 9pt: cap height ~5.85pt, descent ~2.25pt
+        // (must match md-to-pdf.ts constants)
+        const fontSize = 9;
+        const capHeight = fontSize * 0.65;
+        const descent = fontSize * 0.25;
         ops.push({
           type: "text",
           x,
           y, // baseline
-          top: y + 7, // approximate top (PDF y increases upward)
-          bottom: y - 2, // approximate bottom with descenders
+          top: y + capHeight, // top of capital letters
+          bottom: y - descent, // bottom of descenders
           content: text,
         });
       }

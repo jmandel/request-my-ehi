@@ -382,26 +382,21 @@ export class MdPdf {
               maxLines = Math.max(maxLines, wrapped.length);
             }
             
-            // Row geometry:
-            // - Text ascent is ~70% of font size (9pt font → ~6pt ascent)
-            // - Text descent is ~20% of font size (9pt font → ~2pt descent)
-            // - cellLineHeight is baseline-to-baseline (12pt)
-            // - After last line, only need descent space, not full line height
+            // Row geometry using cap-height centering:
+            // - Cap height ≈ 65% of font size (visually dominant height)
+            // - Position baseline so cap-height text is vertically centered
+            // - For multi-line: center the text block
             const fontSize = 9;
-            const textAscent = fontSize * 0.7;  // ~6pt above baseline
-            const textDescent = fontSize * 0.2; // ~2pt below baseline
-            const minClearance = 3; // minimum space between line and text
+            const capHeight = fontSize * 0.65;  // ~5.85pt - height of capital letters
+            const descent = fontSize * 0.25;    // ~2.25pt - descenders go below baseline
+            const minPadding = 3; // minimum space from line to text edge
             
-            // Inter-line space: (n-1) baseline jumps for n lines
-            const interLineHeight = (maxLines - 1) * cellLineHeight;
-            // Row = clearance + ascent + inter-line + descent + clearance
-            const rowPaddingTop = minClearance + textAscent;
-            const rowPaddingBottom = textDescent + minClearance;
-            const rowHeight = rowPaddingTop + interLineHeight + rowPaddingBottom;
+            // Total text block height: cap + (n-1)*lineHeight + descent
+            const textBlockHeight = capHeight + (maxLines - 1) * cellLineHeight + descent;
+            const rowHeight = textBlockHeight + minPadding * 2;
             
             this.newPageIfNeeded(rowHeight);
             
-            // Row starts at this.y, line will be at this.y + rowHeight
             const rowTop = this.y;
             
             // Draw header background
@@ -410,9 +405,10 @@ export class MdPdf {
               this.doc.rect(MARGIN, rowTop, CONTENT_WIDTH, rowHeight, "F");
             }
             
-            // Text baseline position: rowTop + paddingTop gives us where baseline should be
-            // since paddingTop already accounts for ascent
-            const textBaselineY = rowTop + rowPaddingTop;
+            // Center the text block: baseline is capHeight below top of text block
+            // Top of text block = rowTop + minPadding
+            // First baseline = top of text block + capHeight
+            const textBaselineY = rowTop + minPadding + capHeight;
             
             for (let ci = 0; ci < Math.min(wrappedCells.length, cols); ci++) {
               const cellX = colStarts[ci] + cellPadding;
