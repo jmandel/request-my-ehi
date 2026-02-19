@@ -385,17 +385,19 @@ export class MdPdf {
             // Row geometry:
             // - Text ascent is ~70% of font size (9pt font → ~6pt ascent)
             // - Text descent is ~20% of font size (9pt font → ~2pt descent)
-            // - Need clearance above text top and below text bottom
+            // - cellLineHeight is baseline-to-baseline (12pt)
+            // - After last line, only need descent space, not full line height
             const fontSize = 9;
             const textAscent = fontSize * 0.7;  // ~6pt above baseline
             const textDescent = fontSize * 0.2; // ~2pt below baseline
-            const minClearance = 4; // minimum space between line and text
+            const minClearance = 3; // minimum space between line and text
             
-            const textHeight = maxLines * cellLineHeight;
-            // Padding must account for ascent/descent plus clearance
-            const rowPaddingTop = textAscent + minClearance;
+            // Inter-line space: (n-1) baseline jumps for n lines
+            const interLineHeight = (maxLines - 1) * cellLineHeight;
+            // Row = clearance + ascent + inter-line + descent + clearance
+            const rowPaddingTop = minClearance + textAscent;
             const rowPaddingBottom = textDescent + minClearance;
-            const rowHeight = rowPaddingTop + textHeight + rowPaddingBottom;
+            const rowHeight = rowPaddingTop + interLineHeight + rowPaddingBottom;
             
             this.newPageIfNeeded(rowHeight);
             
