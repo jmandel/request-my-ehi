@@ -146,7 +146,9 @@ Help the patient get this form through multiple approaches:
 4. **Check if the provider is part of a larger health system** -- the form may be on the parent system's website rather than the individual clinic's.
 5. **Look for the provider's patient portal** -- some portals have downloadable forms.
 
-Download the PDF form to `/tmp/provider_form.pdf`.
+Download the PDF form to `/tmp/provider_form.pdf`. If you find the URL but can't fetch it (network errors, bot blocking, CAPTCHA, etc.), share the link with the patient and ask them to download and share the file back to you:
+
+> "I found what looks like your provider's records release form at [URL], but I'm having trouble downloading it directly. Could you click that link, download the PDF, and share it with me? Then I can fill it out for you."
 
 **After downloading, check if the form has fillable fields:**
 ```bash
