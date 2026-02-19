@@ -173,7 +173,7 @@ Once you've identified a candidate form URL, follow these steps in order:
    ```bash
    pdftotext ./provider_form.pdf - | head -80
    ```
-   Read the output and confirm this document is a form the patient can use to authorize release of their own health information. If it's something else (privacy notice, patient rights brochure, billing form, general informational document), discard it and continue searching. If you've exhausted all search approaches, fall back to the generic form.
+   Read the output and confirm this document is a form the patient can use to authorize release of their own health information. If it's something else (privacy notice, patient rights brochure, billing form, general informational document), discard it and continue searching. If `pdftotext` returns no text at all, the PDF is likely a scanned image — fall back to the generic form rather than attempting to transcribe from the image. If you've exhausted all search approaches, fall back to the generic form.
 
 3. **Check if the form has fillable fields:**
    ```bash
@@ -187,7 +187,8 @@ Found provider's form?
 ├── Yes, has complete fillable AcroForm fields
 │   └── Fill via form field API → flatten → visual check → proceed
 ├── Yes, but flat/scanned OR incomplete fields (missing signature, date, key sections)
-│   └── Transcribe to markdown with filled values → convert to PDF → visual check → proceed
+│   ├── pdftotext returns text → Transcribe to markdown with filled values → convert to PDF → visual check → proceed
+│   └── pdftotext returns no text (image-only scan) → Use generic form (fillable fields)
 └── No form found
     └── Use generic form (fillable fields)
 ```
