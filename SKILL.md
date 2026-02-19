@@ -146,9 +146,14 @@ Help the patient get this form through multiple approaches:
 4. **Check if the provider is part of a larger health system** -- the form may be on the parent system's website rather than the individual clinic's.
 5. **Look for the provider's patient portal** -- some portals have downloadable forms.
 
-Download the PDF form to `/tmp/provider_form.pdf`.
+Once you find a PDF URL, download it with the provided script:
+```bash
+bun <skill-dir>/scripts/download-provider-form.ts \
+  --url "https://example.com/records-release.pdf" \
+  --output /tmp/provider_form.pdf
+```
 
-**After downloading, check if the form has fillable fields:**
+**Then check if the form has fillable fields:**
 ```bash
 bun <skill-dir>/scripts/list-form-fields.ts /tmp/provider_form.pdf
 ```
@@ -521,6 +526,7 @@ Also prepare them for potential pushback:
 
 | Script | Usage |
 |--------|-------|
+| `download-provider-form.ts` | `bun download-provider-form.ts --url <url> --output <path>` |
 | `lookup-vendor.ts` | `bun lookup-vendor.ts <search-term>` |
 | `list-form-fields.ts` | `bun list-form-fields.ts <pdf-path>` |
 | `generate-appendix.ts` | `bun generate-appendix.ts ['{"vendor": {...}}']` |
