@@ -378,34 +378,41 @@ export class MdPdf {
               maxLines = Math.max(maxLines, wrapped.length);
             }
             
-            const rowHeight = maxLines * cellLineHeight + 4;
+            // Row height: padding top + text lines + padding bottom
+            const rowPaddingTop = 8;
+            const rowPaddingBottom = 6;
+            const textHeight = maxLines * cellLineHeight;
+            const rowHeight = rowPaddingTop + textHeight + rowPaddingBottom;
+            
             this.newPageIfNeeded(rowHeight);
             
-            // Draw header background
+            // Draw header background (before advancing y)
             if (isHeader) {
               this.doc.setFillColor(240, 240, 240);
-              this.doc.rect(MARGIN, this.y - 10, CONTENT_WIDTH, rowHeight, "F");
+              this.doc.rect(MARGIN, this.y, CONTENT_WIDTH, rowHeight, "F");
             }
             
-            // Draw cell contents with wrapping
-            const rowStartY = this.y;
+            // Advance past top padding, then draw text
+            this.y += rowPaddingTop;
+            const textStartY = this.y;
+            
             for (let ci = 0; ci < Math.min(wrappedCells.length, cols); ci++) {
               const cellX = colStarts[ci] + cellPadding;
-              let cellY = rowStartY;
+              let cellY = textStartY;
               for (const line of wrappedCells[ci]) {
                 this.doc.text(line, cellX, cellY);
                 cellY += cellLineHeight;
               }
             }
             
-            this.y = rowStartY + rowHeight - 4;
+            // Advance past text and bottom padding
+            this.y = textStartY + textHeight + rowPaddingBottom;
             
-            // Draw row separator
-            this.doc.setDrawColor(220);
-            this.doc.line(MARGIN, this.y + 4, PAGE_WIDTH - MARGIN, this.y + 4);
-            this.y += 8;
+            // Draw row separator at current y position
+            this.doc.setDrawColor(200);
+            this.doc.line(MARGIN, this.y, PAGE_WIDTH - MARGIN, this.y);
           }
-          this.y += 6;
+          this.y += 8;
         }
         continue;
       }
