@@ -443,7 +443,22 @@ Use pdf-lib to merge:
 2. Page 1 of the filled provider form
 3. The appendix PDF (1 page)
 
-The reference script at `scripts/fill-and-merge.ts` shows the full pattern (pass `coverLetterPath` in the config). Save the final 3-page PDF to the working directory with a descriptive name like `ehi-request-[provider].pdf`.
+If the provider form was filled via AcroForm fields, `scripts/fill-and-merge.ts` handles both filling and merging in one step (pass `coverLetterPath` in the config).
+
+If the provider form was filled via coordinate-based drawing (or you already have a filled PDF from the user), just write a simple pdf-lib merge script — load each PDF with `PDFDocument.load()`, copy pages with `copyPages()`, and save:
+
+```typescript
+import { PDFDocument } from "pdf-lib";
+const merged = await PDFDocument.create();
+for (const path of ["/tmp/cover.pdf", "/tmp/filled_form.pdf", "/tmp/appendix.pdf"]) {
+  const doc = await PDFDocument.load(await Bun.file(path).arrayBuffer());
+  const pages = await merged.copyPages(doc, doc.getPageIndices());
+  pages.forEach(p => merged.addPage(p));
+}
+await Bun.write("/tmp/ehi-request-provider.pdf", await merged.save());
+```
+
+Save the final PDF to the working directory with a descriptive name like `ehi-request-[provider].pdf`.
 
 **⚠️ Verify signature placement:** After generating the PDF with a signature:
 1. Use a PDF-to-image tool or your environment's screenshot capability to visually inspect the signature location
