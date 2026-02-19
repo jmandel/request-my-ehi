@@ -262,6 +262,48 @@ describe("md-to-pdf wrapping behavior", () => {
   });
 });
 
+describe("md-to-pdf column width optimization", () => {
+  beforeEach(() => {
+    setup();
+  });
+
+  test("narrow label column gives space to value column", () => {
+    const md = `
+| Field | Value |
+|-------|-------|
+| Name | This is a very long value that should have plenty of room to display |
+| DOB | 1980-01-15 |
+`;
+    const { violations } = renderMd(md, false);
+    expect(violations).toHaveLength(0);
+    cleanup();
+  });
+
+  test("multiple narrow columns redistribute to final column", () => {
+    const md = `
+| # | A | B | Result |
+|---|---|---|--------|
+| 1 | X |   | This result column should get much more space than the narrow columns |
+| 2 |   | X | Another detailed result description |
+`;
+    const { violations } = renderMd(md, false);
+    expect(violations).toHaveLength(0);
+    cleanup();
+  });
+
+  test("equal content keeps roughly equal columns", () => {
+    const md = `
+| Col A | Col B | Col C |
+|-------|-------|-------|
+| Medium text | Medium text | Medium text |
+| More words | More words | More words |
+`;
+    const { violations } = renderMd(md, false);
+    expect(violations).toHaveLength(0);
+    cleanup();
+  });
+});
+
 describe("md-to-pdf edge cases", () => {
   beforeEach(() => {
     setup();

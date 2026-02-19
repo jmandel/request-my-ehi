@@ -114,6 +114,62 @@ export class MdPdf {
     return this.doc.getTextWidth(text);
   }
 
+  /**
+   * Calculate optimal column widths for a table.
+   * 
+   * Algorithm:
+   * 1. Start with equal column widths
+   * 2. For each non-final column (left to right), measure max content width
+   * 3. If content fits in less space, shrink column and redistribute to remaining columns
+   * 4. Never shrink below content needs or expand beyond original equal width
+   */
+  private calculateColumnWidths(rows: string[][], cols: number, cellPadding: number): number[] {
+    const equalWidth = CONTENT_WIDTH / cols;
+    const minColWidth = 30; // Absolute minimum column width
+    
+    // Measure the maximum content width needed for each column
+    this.font(true, false, 9); // Use header font for measurement (slightly wider)
+    const maxContentWidths: number[] = [];
+    for (let ci = 0; ci < cols; ci++) {
+      let maxWidth = 0;
+      for (const row of rows) {
+        const cellText = row[ci] || "";
+        const textWidth = this.measureText(cellText);
+        maxWidth = Math.max(maxWidth, textWidth);
+      }
+      maxContentWidths.push(maxWidth + cellPadding * 2);
+    }
+    
+    // Start with equal widths
+    const colWidths = Array(cols).fill(equalWidth);
+    
+    // Redistribute from left to right (skip final column)
+    let availableForRedistribution = 0;
+    
+    for (let ci = 0; ci < cols - 1; ci++) {
+      const currentWidth = colWidths[ci] + availableForRedistribution / (cols - ci);
+      const neededWidth = Math.max(minColWidth, maxContentWidths[ci]);
+      
+      if (neededWidth < currentWidth) {
+        // This column has excess space - shrink it and save the excess
+        // But don't shrink below what we'd have with equal distribution
+        const shrunkWidth = Math.max(neededWidth, equalWidth * 0.5);
+        const excess = currentWidth - shrunkWidth;
+        colWidths[ci] = shrunkWidth;
+        availableForRedistribution += excess;
+      } else {
+        // This column needs all its space (and maybe more from redistribution)
+        colWidths[ci] = Math.min(currentWidth, equalWidth * 1.5); // Cap growth
+        availableForRedistribution = Math.max(0, currentWidth - colWidths[ci]);
+      }
+    }
+    
+    // Give all remaining space to the final column
+    colWidths[cols - 1] = equalWidth + availableForRedistribution;
+    
+    return colWidths;
+  }
+
   private newPageIfNeeded(need: number) {
     if (this.y + need > PAGE_HEIGHT - MARGIN) {
       this.doc.addPage();
@@ -295,10 +351,17 @@ export class MdPdf {
         }
         if (rows.length) {
           const cols = rows[0].length;
-          const colW = CONTENT_WIDTH / cols;
           const cellPadding = 4;
-          const availableCellWidth = colW - cellPadding * 2;
           const cellLineHeight = 12;
+          
+          // Calculate optimal column widths
+          const colWidths = this.calculateColumnWidths(rows, cols, cellPadding);
+          
+          // Calculate column start positions
+          const colStarts: number[] = [MARGIN];
+          for (let ci = 0; ci < cols - 1; ci++) {
+            colStarts.push(colStarts[ci] + colWidths[ci]);
+          }
           
           for (let ri = 0; ri < rows.length; ri++) {
             const isHeader = ri === 0;
@@ -309,7 +372,8 @@ export class MdPdf {
             let maxLines = 1;
             for (let ci = 0; ci < rows[ri].length; ci++) {
               const cellText = rows[ri][ci] || "";
-              const wrapped = this.doc.splitTextToSize(cellText, availableCellWidth);
+              const availableWidth = colWidths[ci] - cellPadding * 2;
+              const wrapped = this.doc.splitTextToSize(cellText, availableWidth);
               wrappedCells.push(wrapped);
               maxLines = Math.max(maxLines, wrapped.length);
             }
@@ -325,8 +389,8 @@ export class MdPdf {
             
             // Draw cell contents with wrapping
             const rowStartY = this.y;
-            for (let ci = 0; ci < wrappedCells.length; ci++) {
-              const cellX = MARGIN + ci * colW + cellPadding;
+            for (let ci = 0; ci < Math.min(wrappedCells.length, cols); ci++) {
+              const cellX = colStarts[ci] + cellPadding;
               let cellY = rowStartY;
               for (const line of wrappedCells[ci]) {
                 this.doc.text(line, cellX, cellY);
