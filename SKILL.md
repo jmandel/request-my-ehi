@@ -339,9 +339,9 @@ Optionally pass `--instructions "Custom text"` to override the default instructi
 ```
 Save all three fields.
 
-2. **Share the `signUrl` with the patient.** It opens a mobile-friendly page where they draw their signature. Tell them what to expect on the page.
+2. **Present the `signUrl` to the patient** — show them the link and tell them what to expect on the page. The patient cannot sign without this URL, so you must output it before starting the poll.
 
-3. **Poll for completion** (run in background while you continue preparing other steps):
+3. **Poll for completion** (run in background while the patient signs):
 ```bash
 bun <skill-dir>/scripts/poll-signature.ts <session-id> '<private-key-jwk-json>' \
   --output-dir /tmp
