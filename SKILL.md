@@ -234,7 +234,7 @@ Then write a script to fill the form using pdf-lib's form field API. Map fields 
 
 Always flatten the form after filling so fields render as static text.
 
-**Important**: Only include page 1 of the provider's form (skip "Additional Information" or "For Office Use Only" pages unless the patient specifically needs them).
+**Important**: Fill all pages of the provider's form that have fields to fill out. Only skip pages that have no fillable content (e.g., "For Office Use Only" pages, instruction-only pages).
 
 ### Filling a flat/scanned provider form (coordinate-based drawing)
 
