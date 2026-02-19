@@ -159,15 +159,22 @@ bun <skill-dir>/scripts/list-form-fields.ts /tmp/provider_form.pdf
 
 ```
 Found provider's form?
-├── Yes, has fillable AcroForm fields
+├── Yes, has complete fillable AcroForm fields
 │   └── Fill via form field API → flatten → visual check → proceed
-├── Yes, flat/scanned PDF (no fields)
+├── Yes, but flat/scanned OR incomplete fields (missing signature, date, key sections)
 │   └── Transcribe to markdown with filled values → convert to PDF → visual check → proceed
 └── No form found
     └── Use generic form (fillable fields)
 ```
 
-**⚠️ IMPORTANT: When the form has 0 fillable fields, do NOT skip straight to the generic form.** The provider's own form reduces friction with records staff. Transcribe the flat form to markdown (preserving all sections, text, and structure) and convert to a clean PDF.
+**⚠️ IMPORTANT: When the form lacks fields for required information, do NOT skip straight to the generic form.** The provider's own form reduces friction with records staff. Transcribe the flat form to markdown (preserving all sections, text, and structure) and convert to a clean PDF.
+
+**Signs a form needs markdown transcription (not just field filling):**
+- Zero fillable fields (completely flat/scanned)
+- Missing field for signature (very common)
+- Missing fields for key patient info (name, DOB, address)
+- Fields exist but are too small or poorly placed
+- Mix of fillable and hand-write-only sections
 
 ### The generic access request form
 
