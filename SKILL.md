@@ -17,7 +17,7 @@ cd <skill-dir>/scripts && bun install
 
 This installs `pdf-lib` for PDF generation/manipulation. All scripts in this skill use **Bun** (not Node.js).
 
-Coordinate-based form filling requires `pdftohtml` and `pdftoppm` from **poppler-utils** (`apt install poppler-utils`).
+Optional: `pdftoppm` from **poppler-utils** (`apt install poppler-utils`) is useful for rendering PDFs to images for visual verification.
 
 **Script usage pattern:**
 ```bash
@@ -160,18 +160,14 @@ bun <skill-dir>/scripts/list-form-fields.ts /tmp/provider_form.pdf
 ```
 Found provider's form?
 ├── Yes, has fillable AcroForm fields
-│   └── Fill via form field API (reliable) → flatten → visual check → proceed
+│   └── Fill via form field API → flatten → visual check → proceed
 ├── Yes, flat/scanned PDF (no fields)
-│   └── Fill via coordinate-based drawText using pdf-lib → visual check → review with user
-│       ├── User approves → proceed
-│       ├── User flags problems → agent adjusts and retries (up to 2 rounds)
-│       ├── User wants to fill it themselves → coach them to use a PDF editor and re-upload
-│       └── Still not right → fall back to generic form
+│   └── Transcribe to markdown with filled values → convert to PDF → visual check → proceed
 └── No form found
-    └── Use generic form (fillable fields, always clean)
+    └── Use generic form (fillable fields)
 ```
 
-**⚠️ IMPORTANT: When the form has 0 fillable fields, do NOT skip straight to the generic form.** The provider's own form reduces friction with records staff. First attempt coordinate-based filling using pdf-lib as described below. Only fall back to the generic form if coordinate-based filling fails after review with the user (or if no provider form was found at all).
+**⚠️ IMPORTANT: When the form has 0 fillable fields, do NOT skip straight to the generic form.** The provider's own form reduces friction with records staff. Transcribe the flat form to markdown (preserving all sections, text, and structure) and convert to a clean PDF.
 
 ### The generic access request form
 
@@ -235,80 +231,20 @@ Always flatten the form after filling so fields render as static text.
 
 **Important**: Fill all pages of the provider's form that have fields to fill out. Only skip pages that have no fillable content (e.g., "For Office Use Only" pages, instruction-only pages).
 
-### Filling a flat/scanned provider form
+### Filling a flat/scanned provider form (markdown transcription)
 
-When the provider's form has no fillable fields, you have two options:
-
-**Option A: Coordinate-based drawing** — Draw text directly onto the original PDF using pdf-lib. Best when the form layout is simple and you can hit the field positions accurately.
-
-**Option B: Markdown transcription** — Transcribe the form to markdown with filled values, then convert to PDF. Best when coordinate-based filling is proving difficult, or when the form has complex layout that's hard to overlay.
-
-Try coordinate-based drawing first (it preserves the original form's appearance). Fall back to markdown transcription if you can't get clean results after one or two attempts.
-
-#### Option A: Coordinate-based drawing
-
-Use pdf-lib to draw text, checkmarks, and images directly onto the PDF by coordinate.
-
-#### Step 1: Render the blank form and extract coordinates
-
-```bash
-pdftoppm -png -r 200 /tmp/provider_form.pdf /tmp/provider_form_blank
-pdftohtml -xml -zoom 1 -stdout /tmp/provider_form.pdf > /tmp/provider_form.xml
-```
-
-Look at the rendered image(s) to understand the form layout. Use the XML output from `pdftohtml` to calibrate your coordinates — it gives you exact `top`, `left`, `width`, `height` values for every text element on the page in PDF points (top-left origin, 612×792 for standard letter).
-
-The image at 200 DPI is ~1700×2200 pixels. To convert image pixel positions to PDF points: multiply by 612/1700 ≈ 0.36.
-
-#### Step 2: Write a fill script
-
-Write a short bun/TypeScript script using pdf-lib to place your fills. Use your best judgment for positioning — aim for the blank spaces where a human would write, not on top of labels. The XML coordinates help you understand exactly where existing text is, so you can place fills adjacent to labels.
-
-```typescript
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-
-const doc = await PDFDocument.load(await Bun.file("/tmp/provider_form.pdf").arrayBuffer());
-const font = await doc.embedFont(StandardFonts.Helvetica);
-const INK = rgb(0, 0, 0.6);
-const pages = doc.getPages();
-const page = pages[0];
-const H = page.getSize().height; // 792 for letter
-
-// Text: x,y are in PDF points, top-left origin. Convert to pdf-lib bottom-left:
-page.drawText("Jane Doe", { x: 130, y: H - 169 - 10, size: 10, font, color: INK });
-page.drawText("01/01/1990", { x: 100, y: H - 230 - 10, size: 10, font, color: INK });
-
-// Checkbox (draw an X):
-const cx = 54, cy = H - 369;
-for (const [dx1,dy1,dx2,dy2] of [[-3.5,-3.5,3.5,3.5],[-3.5,3.5,3.5,-3.5]])
-  page.drawLine({ start:{x:cx+dx1,y:cy+dy1}, end:{x:cx+dx2,y:cy+dy2}, thickness:1.5, color:INK });
-
-await Bun.write("/tmp/provider_form_filled.pdf", await doc.save());
-```
-
-**Coordinate tips:**
-- pdf-lib uses bottom-left origin. Convert from top-left: `y_pdflib = pageHeight - y_top - fontSize`
-- Standard letter page: 612 × 792 PDF points
-- Use the XML `<text top="..." left="...">` values to know exactly where labels are, then offset your fills accordingly (e.g., to the right of a label, or just below a header line)
-- Font size 10 works for most form fields; use 8 for tight spaces
-
-#### Step 3: Render and verify
-
-```bash
-pdftoppm -png -r 200 -singlefile /tmp/provider_form_filled.pdf /tmp/provider_form_filled
-```
-
-Look at the result. If text is misaligned, overlapping labels, or landing outside field boundaries, adjust coordinates in your script and re-run. Iterate until it looks right.
-
-#### Option B: Markdown transcription
-
-If coordinate-based filling isn't working well, transcribe the form to markdown and convert to PDF. This produces a clean, readable document that faithfully represents the form content with filled values.
+When the provider's form has no fillable fields, transcribe it to markdown with filled values, then convert to PDF. This produces a clean, readable document that faithfully represents the original form's content.
 
 **Step 1: Transcribe the form to markdown**
 
-Create a markdown file that reproduces the form's structure and content with the patient's information filled in:
+Create a markdown file that reproduces the form's structure and content with the patient's information filled in. **Start with a note explaining the transcription:**
 
 ```markdown
+*Note: The provider's authorization form was not compatible with accessible form*
+*completion tools, so it has been transcribed below with all information and content preserved.*
+
+---
+
 # Authorization for Release of Health Information
 
 **Provider:** University Health Partners
@@ -408,31 +344,21 @@ Review the rendered PDF. The markdown approach typically produces clean results 
 **What to tell the patient:**
 > "Your provider's form isn't digitally fillable, so I've created a clean version that includes all the same information and sections. It's formatted as a standard authorization form with your details filled in. Providers are required to accept any written request that meets HIPAA requirements."
 
-### Visual review loop
+### Visual review
 
-After filling the provider's form (whether via form fields or coordinate drawing), you must:
+After filling the form (via form fields or markdown transcription), verify the result:
 
-1. **Render the filled PDF to an image** and visually inspect the result.
-2. **Check for problems:** overlapping text, misalignment, text outside field boundaries, unreadable small text, checkmarks in wrong positions.
-3. **If the form used coordinate-based drawing**, show the rendered image to the user and specifically ask: *"I've filled out your provider's form -- does the text alignment look right to you? If anything is misaligned or hard to read, let me know and I'll adjust."*
-4. **If the user flags problems**, adjust coordinates and re-run. Allow up to two rounds of adjustment.
-5. **If it's still not right after two rounds**, offer two options:
-   - Coach the user to fill out the blank form themselves using a free PDF editor (e.g., Adobe Acrobat Reader, Mac Preview, or a browser's built-in PDF viewer) and re-upload the filled version
-   - Fall back to the generic access request form, which uses fillable fields and will always be clean
+1. **Render the filled PDF to an image** and visually inspect it
+2. **Check for problems:** signature placement, text legibility, checkbox states, overall layout
+3. **For markdown-transcribed forms**, the output is typically clean on the first try since it's generated fresh (not overlaid on an existing PDF)
 
 ### What to say to the user
 
-**When attempting the provider's form (coordinate-based):**
-> "I found your provider's records release form. It's not digitally fillable, so I'm placing your information on it as accurately as I can. I'll show you the result so you can check it looks good before we finalize."
+**When transcribing a flat form to markdown:**
+> "Your provider's form isn't digitally fillable, so I've created a clean version that includes all the same sections and content with your information filled in. Providers are required to accept any written request that meets HIPAA requirements."
 
-**When showing the result for review:**
-> "Here's the filled form -- take a look at the text placement. Does everything line up with the fields? If anything looks off, I can adjust it. Or if you'd prefer, you can fill out the blank form yourself using a free PDF editor (like Adobe Acrobat Reader, Mac Preview, or your browser's PDF viewer) and send it back to me."
-
-**When falling back to generic:**
-> "I wasn't able to get clean results on your provider's form, so I'm using a standard HIPAA access request form instead. This is equally valid -- providers are required to accept any written request that meets the requirements of the HIPAA Right of Access."
-
-**When coaching the user to fill manually:**
-> "If you'd rather fill this out yourself, here's the blank form. You can print it and fill it in by hand, or use a PDF annotation tool (like Adobe Acrobat Reader or Mac Preview) to add text on top. Then scan or save it and share it back with me — I'll include it in your request package."
+**When using the generic form:**
+> "I'm using a standard HIPAA access request form. This is equally valid -- providers are required to accept any written request that meets the requirements of the HIPAA Right of Access."
 
 ## Step 7: Handle Signature
 
