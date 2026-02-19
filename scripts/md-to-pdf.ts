@@ -398,14 +398,20 @@ export class MdPdf {
               this.doc.rect(MARGIN, rowTop, CONTENT_WIDTH, rowHeight, "F");
             }
             
-            // For n lines of text, center the block vertically in the row
-            // First line center is at: rowTop + minPadding + cellLineHeight/2
-            const firstLineCenter = rowTop + minPadding + cellLineHeight / 2;
+            // Each cell's text block should be vertically centered in the row
+            // Row center is at: rowTop + rowHeight/2
+            const rowCenterY = rowTop + rowHeight / 2;
             
             for (let ci = 0; ci < Math.min(wrappedCells.length, cols); ci++) {
               const cellX = colStarts[ci] + cellPadding;
-              for (let li = 0; li < wrappedCells[ci].length; li++) {
-                const lineCenter = firstLineCenter + li * cellLineHeight;
+              const cellLines = wrappedCells[ci].length;
+              // This cell's text block height
+              const cellTextHeight = cellLines * cellLineHeight;
+              // Center this cell's text block in the row
+              const cellFirstLineCenter = rowCenterY - cellTextHeight / 2 + cellLineHeight / 2;
+              
+              for (let li = 0; li < cellLines; li++) {
+                const lineCenter = cellFirstLineCenter + li * cellLineHeight;
                 this.doc.text(wrappedCells[ci][li], cellX, lineCenter, { baseline: "middle" });
               }
             }
@@ -415,7 +421,7 @@ export class MdPdf {
             this.doc.setDrawColor(200);
             this.doc.line(MARGIN, this.y, PAGE_WIDTH - MARGIN, this.y);
           }
-          this.y += 4; // small gap after table
+          this.y += 14; // gap after table (accounts for following text ascent)
         }
         continue;
       }
