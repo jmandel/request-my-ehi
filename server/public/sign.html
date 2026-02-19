@@ -140,24 +140,6 @@
     font-weight: 500;
     margin: 0;
   }
-  .close-btn {
-    background: #1a3c5e;
-    color: white;
-    border: none;
-    padding: 14px 32px;
-    font-size: 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    margin-top: 16px;
-  }
-  .close-btn:hover {
-    background: #2d5a87;
-  }
-  .close-hint {
-    color: #999;
-    font-size: 12px;
-    margin-top: 12px;
-  }
   .spinner {
     display: inline-block;
     width: 24px;
@@ -186,17 +168,15 @@
     <p id="error-message"></p>
   </div>
 
-  <!-- Success state -->
+  <!-- Success state (only shown if auto-close failed) -->
   <div id="success" class="status success hidden">
     <div class="success-icon">✓</div>
     <h2>Signature Submitted Successfully</h2>
     <p class="success-message">Your signature has been securely encrypted and submitted.</p>
     <div class="next-step">
-      <p class="next-step-title">Next Step:</p>
-      <p class="next-step-action">Close this window and return to your AI assistant to continue.</p>
+      <p class="next-step-title">You can close this tab now</p>
+      <p class="next-step-action">Return to your AI assistant to continue.</p>
     </div>
-    <button class="close-btn" onclick="window.close()">Close This Window</button>
-    <p class="close-hint">If the button doesn't work, manually close this tab.</p>
   </div>
 
   <!-- Main signing form -->
@@ -387,6 +367,10 @@
         throw new Error(err.error || 'Submission failed');
       }
 
+      // Try to auto-close the window
+      window.close();
+      
+      // If we're still here, auto-close didn't work - show manual instructions
       $('#sign-form').classList.add('hidden');
       $('#success').classList.remove('hidden');
     } catch (e) {
