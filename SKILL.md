@@ -138,6 +138,8 @@ Help the patient get this form through multiple approaches:
    - `"[provider name]" "authorization" "release" "protected health information" filetype:pdf`
    - `"[provider name]" "medical records" "release form" filetype:pdf`
    - `"[provider name]" "ROI" OR "release of information" form filetype:pdf`
+   - `"[provider name]" "request" "own records" OR "own medical records" filetype:pdf`
+   - `"[provider name]" "patient access" "health information" filetype:pdf`
    - `site:[provider-domain] authorization release`
 3. **Navigate the provider's website** -- look for sections like:
    - "Patients & Visitors" / "Patient Resources" / "Forms"
@@ -146,14 +148,37 @@ Help the patient get this form through multiple approaches:
 4. **Check if the provider is part of a larger health system** -- the form may be on the parent system's website rather than the individual clinic's.
 5. **Look for the provider's patient portal** -- some portals have downloadable forms.
 
-Download the PDF form to `/tmp/provider_form.pdf`. If you find the URL but can't fetch it (network errors, bot blocking, CAPTCHA, etc.), share the link with the patient and ask them to download and share the file back to you:
+### Choosing the right form
 
-> "I found what looks like your provider's records release form at [URL], but I'm having trouble downloading it directly. Could you click that link, download the PDF, and share it with me? Then I can fill it out for you."
+Providers often have **multiple forms** for different purposes. When you find more than one, apply these preferences:
 
-**After downloading, check if the form has fillable fields:**
-```bash
-bun <skill-dir>/scripts/list-form-fields.ts /tmp/provider_form.pdf
-```
+1. **Prefer patient-access forms over third-party release forms.** Some providers have a separate form specifically for patients requesting access to their *own* records (sometimes called "Patient Access Request," "Request for Own Records," or "Individual Right of Access"). This is distinct from the general ROI form used to release records to a third party (another doctor, insurer, attorney, etc.). The patient-access form is a better fit because we're requesting records for the patient themselves. If no separate patient-access form exists, the general ROI form is fine.
+2. **Prefer the most recent version.** Forms are sometimes revised -- look for dates, version numbers, or "revised" labels on the form itself or in the filename/URL. When multiple versions exist, use the most recent one.
+3. **Prefer the provider's own form over a generic state or federal form**, unless the provider's website explicitly directs patients to use that external form.
+
+### Downloading and verifying the form
+
+Once you've identified a candidate form URL, follow these steps in order:
+
+1. **Download with a realistic user agent** to avoid bot blocking:
+   ```bash
+   curl -sL -o provider_form.pdf \
+     -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" \
+     "<URL>"
+   ```
+   If the download fails (network error, CAPTCHA, 403), share the link with the patient and ask them to download and share the file back to you:
+   > "I found what looks like your provider's records release form at [URL], but I'm having trouble downloading it directly. Could you click that link, download the PDF, and share it with me? Then I can fill it out for you."
+
+2. **Verify this is actually a records release/authorization form.** Extract the text and review it:
+   ```bash
+   pdftotext ./provider_form.pdf - | head -80
+   ```
+   Read the output and confirm this document is a form the patient can use to authorize release of their own health information. If it's something else (privacy notice, patient rights brochure, billing form, general informational document), discard it and continue searching. If you've exhausted all search approaches, fall back to the generic form.
+
+3. **Check if the form has fillable fields:**
+   ```bash
+   bun <skill-dir>/scripts/list-form-fields.ts ./provider_form.pdf
+   ```
 
 ### Decision flow
 
@@ -166,6 +191,8 @@ Found provider's form?
 └── No form found
     └── Use generic form (fillable fields)
 ```
+
+**⚠️ CRITICAL: Never invent or fabricate form content.** Your transcription must faithfully reproduce the actual text from the downloaded form. If you cannot read or extract the form's content (download failed, file is corrupt, wrong document type), fall back to the generic form at `templates/authorization-form.pdf`. A real generic form is always better than a fabricated provider-specific form.
 
 **⚠️ IMPORTANT: When the form lacks fields for required information, do NOT skip straight to the generic form.** The provider's own form reduces friction with records staff. Transcribe the flat form to markdown (preserving all sections, text, and structure) and convert to a clean PDF.
 
@@ -204,7 +231,7 @@ If the provider's own form can't be found, use the generic fillable PDF at `temp
 - Acknowledgment
 - Signature and date
 
-To use it programmatically, copy it to `/tmp/provider_form.pdf` and fill it with pdf-lib's form field API -- the same approach used for provider forms:
+To use it programmatically, copy it to `./provider_form.pdf` and fill it with pdf-lib's form field API -- the same approach used for provider forms:
 ```javascript
 const form = doc.getForm();
 form.getTextField('patientName').setText(patient.name);
@@ -235,7 +262,7 @@ Note these for the delivery guidance at the end.
 
 Use the reference script to enumerate all form fields:
 ```bash
-bun <skill-dir>/scripts/list-form-fields.ts /tmp/provider_form.pdf
+bun <skill-dir>/scripts/list-form-fields.ts ./provider_form.pdf
 ```
 
 This will show each field's type, name, current value, and widget position (x, topY, width, height). Use this to understand the form's structure.
@@ -263,10 +290,16 @@ When the provider's form has no fillable fields, transcribe it to markdown with 
 
 **Step 1: Transcribe the form to markdown**
 
-Create a markdown file that reproduces the form's structure and content with the patient's information filled in. **Start with a note explaining the transcription:**
+Before transcribing, extract the complete text of every page:
+```bash
+pdftotext ./provider_form.pdf -
+```
+Use this full text as the basis for your transcription — do not rely solely on rendered page images, which may miss pages or cut off fine print. Read the COMPLETE output before starting.
+
+Create a markdown file that reproduces the form's structure and content with the patient's information filled in. **Wrap all patient-filled values in `==...==` markers** so the PDF renderer can visually distinguish filled-in data (rendered in bold blue) from the original form text. This includes names, dates, addresses, checked boxes' labels, and any other values the patient is providing — but not the form's own headings, labels, or legal text. **Start with a note explaining the transcription:**
 
 ```markdown
-> **Note to Medical Records Department:** Your authorization form is a non-fillable
+> **Note to Medical Records Department:** Your published authorization form is a non-fillable
 > PDF (it lacks interactive form fields), which prevents electronic completion.
 > Pursuant to 45 CFR § 164.524(b)(1), covered entities may not impose unreasonable
 > measures that serve as barriers to individuals requesting access. This document
@@ -289,16 +322,16 @@ Create a markdown file that reproduces the form's structure and content with the
 
 | Field | Value |
 | ----- | ----- |
-| Patient Name | **Jane Doe** |
-| Date of Birth | January 15, 1985 |
-| Address | 123 Main Street, Madison, WI 53711 |
-| Phone | (608) 555-0123 |
+| Patient Name | ==Jane Doe== |
+| Date of Birth | ==January 15, 1985== |
+| Address | ==123 Main Street, Madison, WI 53711== |
+| Phone | ==(608) 555-0123== |
 
 ## Information Requested
 
 - [ ] Complete Medical Record
 - [ ] Discharge Summary
-- [x] Other (see below)
+- [x] ==Other (see below)==
 
 > **Electronic Health Information (EHI) Export** — Complete export of all 
 > structured data pursuant to 45 CFR § 170.315(b)(10). See attached Appendix A.
@@ -307,11 +340,11 @@ Create a markdown file that reproduces the form's structure and content with the
 
 I authorize the release of my protected health information as described above.
 
-**Patient Signature:** __________________ **Date:** February 19, 2025
+**Patient Signature:** __________________ **Date:** ==February 19, 2025==
 
-![Signature](/tmp/signature.png)
+![Signature](./signature.png)
 
-**Printed Name:** Jane Doe
+**Printed Name:** ==Jane Doe==
 ```
 
 **Important:** Do not place signature images inside table cells — the renderer does not support images in tables. Use the format above: signature label and date on one line, image below, printed name below that.
@@ -319,7 +352,7 @@ I authorize the release of my protected health information as described above.
 **Tips for high-fidelity transcription:**
 
 - **Preserve all original text** — Include section headers, instructions, legal language, and fine print exactly as they appear
-- **Use `[x]` / `[ ]` for checkboxes** — Renders as `[X]` checked or `[ ]` unchecked
+- **Use `[x]` / `[ ]` for checkboxes** — Renders as `[X]` checked or `[ ]` unchecked. Unicode ☑/☐ also work.
 - **Use `>` for callouts** — Renders with a border box
 - **Match the original form's organization** — Same sections in same order
 
@@ -329,7 +362,7 @@ The signature can be included in two ways:
 
 1. **File path** — If you have the signature saved to disk:
    ```markdown
-   ![Signature](/tmp/signature.png)
+   ![Signature](./signature.png)
    ```
 
 2. **Base64 data URL** — Embed the image directly:
@@ -339,7 +372,7 @@ The signature can be included in two ways:
 
 To get a base64 data URL from a file:
 ```bash
-echo "data:image/png;base64,$(base64 -w0 /tmp/signature.png)"
+echo "data:image/png;base64,$(base64 -w0 ./signature.png)"
 ```
 
 Place the signature image in the appropriate location (usually above or next to "Patient Signature" and the date).
@@ -347,7 +380,7 @@ Place the signature image in the appropriate location (usually above or next to 
 **Step 3: Convert to PDF**
 
 ```bash
-bun <skill-dir>/scripts/md-to-pdf.ts /tmp/filled_form.md /tmp/provider_form_filled.pdf
+bun <skill-dir>/scripts/md-to-pdf.ts ./filled_form.md ./provider_form_filled.pdf
 ```
 
 This produces a clean PDF with:
@@ -360,7 +393,7 @@ This produces a clean PDF with:
 **Step 4: Verify the result**
 
 ```bash
-pdftoppm -png -r 150 -singlefile /tmp/provider_form_filled.pdf /tmp/preview
+pdftoppm -png -r 150 -singlefile ./provider_form_filled.pdf ./preview
 ```
 
 Review the rendered PDF. The markdown approach typically produces clean results on the first try, but verify the signature placement and overall layout before proceeding.
@@ -423,17 +456,17 @@ Save all three fields.
 3. **Poll for completion** (run in background while the patient signs):
 ```bash
 bun <skill-dir>/scripts/poll-signature.ts <session-id> '<private-key-jwk-json>' \
-  --output-dir /tmp
+  --output-dir .
 ```
 This blocks until the patient signs (or the session expires). On success it writes:
-- `/tmp/signature.png` -- transparent-background PNG of the drawn signature
-- `/tmp/signature-metadata.json` -- timestamp, audit log
+- `./signature.png` -- transparent-background PNG of the drawn signature
+- `./signature-metadata.json` -- timestamp, audit log
 
 And outputs JSON to stdout:
 ```json
 {
-  "signaturePath": "/tmp/signature.png",
-  "metadataPath": "/tmp/signature-metadata.json",
+  "signaturePath": "./signature.png",
+  "metadataPath": "./signature-metadata.json",
   "timestamp": "2026-02-18T18:05:00.000Z"
 }
 ```
@@ -444,7 +477,7 @@ Progress goes to stderr. Exits with code 1 if the session expires.
 ### Option B: Signature Image Upload
 
 Ask the patient if they have a signature image to embed. If they provide one:
-1. Make white pixels transparent: `convert input.png -fuzz 20% -transparent white /tmp/signature-transparent.png` (or use `magick` depending on the ImageMagick version available)
+1. Make white pixels transparent: `convert input.png -fuzz 20% -transparent white ./signature-transparent.png` (or use `magick` depending on the ImageMagick version available)
 2. Embed the transparent PNG on the signature line using `page.drawImage()`
 3. Scale to approximately 28-30px height, positioned just above the signature label line
 4. Remove the PDF's signature form field (if any) so it doesn't overlay the image
@@ -463,7 +496,7 @@ The cover letter includes the patient's name and DOB (for identification if page
 bun <skill-dir>/scripts/generate-cover-letter.ts '{
   "patientName": "Jane Doe",
   "dob": "03/15/1985",
-  "outputPath": "/tmp/cover-letter.pdf"
+  "outputPath": "./cover-letter.pdf"
 }'
 ```
 
@@ -477,9 +510,9 @@ The appendix contains no patient-specific information -- it explains what an EHI
 
 #### For Epic providers
 
-For the quickest path, copy the pre-built `templates/appendix.pdf` to `/tmp/appendix.pdf`. To include the date reference line, regenerate:
+For the quickest path, copy the pre-built `templates/appendix.pdf` to `./appendix.pdf`. To include the date reference line, regenerate:
 ```bash
-bun <skill-dir>/scripts/generate-appendix.ts '{"date": "02/18/2026", "outputPath": "/tmp/appendix.pdf"}'
+bun <skill-dir>/scripts/generate-appendix.ts '{"date": "02/18/2026", "outputPath": "./appendix.pdf"}'
 ```
 
 #### For non-Epic providers
@@ -500,7 +533,7 @@ bun <skill-dir>/scripts/generate-appendix.ts '{
 }'
 ```
 
-This generates `/tmp/appendix.pdf` with:
+This generates `./appendix.pdf` with:
 - The vendor's product name and developer in the request description
 - The vendor's official EHI documentation URL in the reference table
 - Export format details (CSV, NDJSON, etc.) and entity/field counts
@@ -523,12 +556,12 @@ If you already have a filled PDF (from markdown transcription or the user), writ
 ```typescript
 import { PDFDocument } from "pdf-lib";
 const merged = await PDFDocument.create();
-for (const path of ["/tmp/cover.pdf", "/tmp/filled_form.pdf", "/tmp/appendix.pdf"]) {
+for (const path of ["./cover.pdf", "./filled_form.pdf", "./appendix.pdf"]) {
   const doc = await PDFDocument.load(await Bun.file(path).arrayBuffer());
   const pages = await merged.copyPages(doc, doc.getPageIndices());
   pages.forEach(p => merged.addPage(p));
 }
-await Bun.write("/tmp/ehi-request-provider.pdf", await merged.save());
+await Bun.write("./ehi-request-provider.pdf", await merged.save());
 ```
 
 Save the final PDF to the working directory with a descriptive name like `ehi-request-[provider].pdf`.
