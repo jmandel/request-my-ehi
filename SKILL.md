@@ -60,7 +60,7 @@ Be ready to explain things in plain language if the patient has questions. Many 
 
 ## Step 2: Identify the EHR Vendor
 
-Once you know the provider, figure out which EHR system they use. This determines the vendor-specific details in the appendix (export format, documentation URL, entity counts, etc.). **Do this research yourself -- don't ask the patient what EHR their doctor uses.**
+Once you know the provider, figure out which EHR system they use. This determines the vendor-specific details in the appendix (export format, documentation URL, entity counts, etc.). **This is a web research task -- search for information about the provider online. Don't ask the patient what EHR their doctor uses.**
 
 ### How to identify the vendor
 
