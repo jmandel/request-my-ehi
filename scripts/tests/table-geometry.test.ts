@@ -68,17 +68,16 @@ function extractDrawOps(pdfBuffer: Buffer): DrawOp[] {
         const y = parseFloat(posMatch?.[2] || tmMatch?.[2] || "0");
         const text = textMatch[1];
         
-        // Font size 9pt: cap height ~5.85pt, descent ~2.25pt
-        // (must match md-to-pdf.ts constants)
+        // Using baseline:"middle", the y coordinate IS the visual center
+        // Text extends roughly fontSize/2 above and below
         const fontSize = 9;
-        const capHeight = fontSize * 0.65;
-        const descent = fontSize * 0.25;
+        const halfHeight = fontSize * 0.4; // approximate half-height of rendered text
         ops.push({
           type: "text",
           x,
-          y, // baseline
-          top: y + capHeight, // top of capital letters
-          bottom: y - descent, // bottom of descenders
+          y, // this is the visual center when using baseline:"middle"
+          top: y + halfHeight,
+          bottom: y - halfHeight,
           content: text,
         });
       }

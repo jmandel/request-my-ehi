@@ -382,17 +382,10 @@ export class MdPdf {
               maxLines = Math.max(maxLines, wrapped.length);
             }
             
-            // Row geometry using cap-height centering:
-            // - Cap height ≈ 65% of font size (visually dominant height)
-            // - Position baseline so cap-height text is vertically centered
-            // - For multi-line: center the text block
-            const fontSize = 9;
-            const capHeight = fontSize * 0.65;  // ~5.85pt - height of capital letters
-            const descent = fontSize * 0.25;    // ~2.25pt - descenders go below baseline
-            const minPadding = 3; // minimum space from line to text edge
-            
-            // Total text block height: cap + (n-1)*lineHeight + descent
-            const textBlockHeight = capHeight + (maxLines - 1) * cellLineHeight + descent;
+            // Row geometry using jsPDF's baseline:"middle" for proper centering
+            // This lets jsPDF handle font metrics internally
+            const minPadding = 4; // space from line to text edge
+            const textBlockHeight = maxLines * cellLineHeight;
             const rowHeight = textBlockHeight + minPadding * 2;
             
             this.newPageIfNeeded(rowHeight);
@@ -405,17 +398,15 @@ export class MdPdf {
               this.doc.rect(MARGIN, rowTop, CONTENT_WIDTH, rowHeight, "F");
             }
             
-            // Center the text block: baseline is capHeight below top of text block
-            // Top of text block = rowTop + minPadding
-            // First baseline = top of text block + capHeight
-            const textBaselineY = rowTop + minPadding + capHeight;
+            // For n lines of text, center the block vertically in the row
+            // First line center is at: rowTop + minPadding + cellLineHeight/2
+            const firstLineCenter = rowTop + minPadding + cellLineHeight / 2;
             
             for (let ci = 0; ci < Math.min(wrappedCells.length, cols); ci++) {
               const cellX = colStarts[ci] + cellPadding;
-              let cellY = textBaselineY;
-              for (const line of wrappedCells[ci]) {
-                this.doc.text(line, cellX, cellY);
-                cellY += cellLineHeight;
+              for (let li = 0; li < wrappedCells[ci].length; li++) {
+                const lineCenter = firstLineCenter + li * cellLineHeight;
+                this.doc.text(wrappedCells[ci][li], cellX, lineCenter, { baseline: "middle" });
               }
             }
             
