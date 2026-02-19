@@ -246,6 +246,10 @@ Create a markdown file that reproduces the form's structure and content with the
 > measures that serve as barriers to individuals requesting access. This document
 > faithfully reproduces all content from your authorization form with the required
 > information completed.
+>
+> Form source: https://example-health.org/forms/medical-records-release.pdf
+
+(Include the actual URL where the form was retrieved, when known, for easy verification.)
 
 ---
 
