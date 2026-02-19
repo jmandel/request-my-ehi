@@ -258,9 +258,43 @@ This outputs one line per text span with `[left,top,right,bottom]` coordinates i
 
 Labels, blanks, checkboxes, and boilerplate all appear as text spans with positions. If underscore runs are present, their bounding boxes are useful for positioning — place fill text centered vertically and horizontally within the underscore region. Garbled/replacement characters (e.g. `�`) typically indicate checkboxes.
 
-#### Step 2: Map fields and place text
+#### Step 2: Visually inspect the blank form
 
-Use the extracted positions to build a field map, then draw text with `drawText`. For checkboxes, place a checkmark (`\u2713`) centered in the glyph's bounding box.
+**Before writing any fill code**, render the blank form to an image and look at it:
+```bash
+pdftoppm -png -r 200 -singlefile /tmp/provider_form.pdf /tmp/provider_form_blank
+```
+
+This is critical because forms use different layout patterns, and text positions alone don't tell you where the blank space is. You need to see the form to understand its structure.
+
+**Two common form patterns:**
+
+**Pattern A — Underscore fields:** Labels sit to the left of underscore runs on the same line. Fill text goes on top of/just above the underscores.
+```
+Patient Name: ___________________________  DOB: ___/___/___
+              ↑ fill here                       ↑ fill here
+```
+The `pdf-text-positions.ts` output directly shows where underscores are. Place fill text at the underscore's position.
+
+**Pattern B — Boxed cells with sub-labels:** The form is a grid of boxes. Each cell has a field label at the top-left and a sub-label at the bottom describing what goes in the space above it. Fill text goes in the blank space BETWEEN the field label and the sub-label — NOT on the sub-label.
+```
+┌─────────────────────────────────────────────────────────┐
+│ Patient Name:                                           │
+│   Smith                  John                           │ ← fill here (middle of cell)
+│   Last                   First                      MI  │ ← sub-labels (do NOT fill here)
+├─────────────────────────────────────────────────────────┤
+│ Address:                                                │
+│   49 Main St                                            │ ← fill here
+│   Street (include Apt#, if applicable)                  │ ← sub-label (do NOT fill here)
+└─────────────────────────────────────────────────────────┘
+```
+In the text positions output, sub-labels like "Last", "First", "MI", "City", "State", "Zip Code", "Street (include Apt#...)" appear below the fill zone. If you draw text at the sub-label's y-position, it will land on top of the sub-label text. Instead, place fill text roughly halfway between the field label and the sub-label.
+
+**How to tell which pattern you're looking at:** Inspect the rendered image. If you see horizontal lines with text above them, it's Pattern A (underscores). If you see a grid of boxes with small descriptive text at the bottom of each cell, it's Pattern B (boxed cells). Many forms mix both patterns.
+
+#### Step 3: Map fields and place text
+
+Use the extracted positions to build a field map, then draw text with `drawText`. For checkboxes, place a checkmark centered in the glyph's bounding box.
 
 Remember that `drawText` uses bottom-left origin, so convert Y: `y = pageHeight - top`.
 
@@ -293,6 +327,8 @@ These guidelines help maximize legibility:
 
 Before rendering the filled form, verify each item:
 
+- [ ] **Blank form inspected**: You rendered and visually inspected the blank form BEFORE writing fill code — you know whether it uses underscore fields (Pattern A) or boxed cells with sub-labels (Pattern B)
+- [ ] **Sub-label avoidance**: For boxed/cell forms, fill text is positioned ABOVE sub-labels ("Last", "First", "City", "State", "Street", etc.), not on top of them
 - [ ] **Date segments**: Fields like `___/___/___` — each piece (month, day, year) drawn in its own slot, not as one string
 - [ ] **Checkbox marks**: Use `drawLine` X marks, not `drawText('\u2713')` (standard fonts can't encode it)
 - [ ] **Baseline alignment**: `y = pageHeight - bottom + 2` (anchor to bottom of text element, not top)
