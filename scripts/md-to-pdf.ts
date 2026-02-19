@@ -135,7 +135,7 @@ class MdPdf {
         i++; continue;
       }
 
-      // Blockquote - collect all lines first, then render
+      // Blockquote - thin border box (fax-friendly)
       if (line.startsWith("> ")) {
         const qLines: string[] = [];
         while (i < lines.length && lines[i].startsWith("> ")) {
@@ -143,43 +143,27 @@ class MdPdf {
           i++;
         }
         
-        // Calculate wrapped text first
         this.font(false, true, 10);
         const qText = this.clean(qLines.join(" "));
-        const wrapped = this.doc.splitTextToSize(qText, CONTENT_WIDTH - 20);
-        const totalHeight = wrapped.length * LINE_HEIGHT + 10;
+        const wrapped = this.doc.splitTextToSize(qText, CONTENT_WIDTH - 16);
+        const totalHeight = wrapped.length * LINE_HEIGHT + 12;
         
-        // Check if we need a new page for the whole block
-        this.newPageIfNeeded(Math.min(totalHeight, PAGE_HEIGHT - MARGIN * 2));
+        this.newPageIfNeeded(totalHeight);
+        const startY = this.y - 8;
         
-        const startY = this.y;
-        
-        // Render text first
+        // Render text
         for (const wl of wrapped) {
-          this.newPageIfNeeded(LINE_HEIGHT);
-          this.doc.text(wl, MARGIN + 10, this.y);
+          this.doc.text(wl, MARGIN + 8, this.y);
           this.y += LINE_HEIGHT;
         }
         
-        // Draw background and border only on starting page portion
-        const endY = this.y;
-        // Only draw if we didn't cross pages
-        if (endY > startY) {
-          this.doc.setFillColor(248, 248, 248);
-          this.doc.rect(MARGIN, startY - 12, CONTENT_WIDTH, endY - startY + 8, "F");
-          this.doc.setDrawColor(180);
-          this.doc.line(MARGIN, startY - 12, MARGIN, endY - 4);
-          
-          // Re-render text on top of background
-          this.font(false, true, 10);
-          let ty = startY;
-          for (const wl of wrapped) {
-            this.doc.text(wl, MARGIN + 10, ty);
-            ty += LINE_HEIGHT;
-          }
-        }
+        // Draw thin border box
+        this.doc.setDrawColor(0);
+        this.doc.setLineWidth(0.5);
+        this.doc.rect(MARGIN, startY, CONTENT_WIDTH, this.y - startY + 4);
+        this.doc.setLineWidth(1);
         
-        this.y += 6;
+        this.y += 10;
         continue;
       }
 
