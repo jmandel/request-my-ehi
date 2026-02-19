@@ -265,27 +265,39 @@ Key things to notice in the image:
 
 Cross-reference the image with the text positions to get exact coordinates for your `drawText` calls.
 
-#### Step 3: Write the fill script
+#### Step 3: Fill using fill-form.ts
 
-Use the coordinates from step 1 to place text with `drawText` and checkmarks with `drawLine`.
+Use `fill-form.ts` to place text and checkmarks. Provide approximate positions — the script automatically avoids overlapping existing content.
 
-**Coordinate conversion:** `pdf-text-positions.ts` outputs top-left origin. `drawText` uses bottom-left origin. Convert: `y = pageHeight - topFromScript`.
+```bash
+echo '{
+  "inputPdf": "/tmp/provider_form.pdf",
+  "outputPdf": "/tmp/provider_form_filled.pdf",
+  "fills": [
+    { "text": "Jane Doe", "x": 130, "y": 119, "page": 1 },
+    { "text": "01/01/1990", "x": 490, "y": 119, "page": 1, "fontSize": 11 },
+    { "check": true, "x": 50, "y": 365, "page": 1 }
+  ]
+}' | bun <skill-dir>/scripts/fill-form.ts
+```
 
-**Practical tips:**
-- Use Helvetica or Times-Roman at 10-11pt. Go to 9pt only if tight. Never below 8pt.
-- Use dark blue (`rgb(0, 0, 0.6)`) for all filled text and marks — distinguishes entered data from printed form text, like filling in blue ink.
-- For checkboxes, draw an X with two `drawLine` calls. Don't use `drawText('\u2713')` — pdf-lib standard fonts can't encode it.
-- If text is too long for a field, try reducing font size by 1pt. If still too long, truncate rather than overflow.
-- Scanned PDFs may have rotated pages — check `page.getRotation()`.
+**Fill types:**
+- `{ "text": "...", "x", "y", "page", "fontSize" }` — text fill, nudged to avoid overlaps. `fontSize` defaults to 10, `page` to 1.
+- `{ "check": true, "x", "y", "page" }` — draws an X mark at the exact position (no nudging).
+- `{ "image": "/path/to/img.png", "x", "y", "width", "height", "page" }` — embeds a PNG/JPEG (e.g. signature) at exact position. `width`/`height` default to image's natural dimensions.
+
+Coordinates are PDF points, top-left origin (same as `pdf-text-positions.ts`). Target the label position; the script finds adjacent free space.
+
+Output: The filled PDF is written to `outputPdf`. A standalone creation script is written to `{outputPdf}.creation-script.ts` and printed to stdout. The creation script is a runnable `.ts` file with all the `drawText`/`drawLine`/`drawImage` calls at their final resolved coordinates — read it, edit positions if needed, and re-run with `bun` to regenerate the PDF.
 
 #### Step 4: Render and verify
 
 Render the filled PDF to an image and visually inspect:
 ```bash
-pdftoppm -png -r 200 -singlefile /tmp/provider_form.pdf /tmp/provider_form_filled
+pdftoppm -png -r 200 -singlefile /tmp/provider_form_filled.pdf /tmp/provider_form_filled
 ```
 
-Check that fill text lands in blank spaces (not on labels/sub-labels), checkmarks land in checkbox squares, and nothing overlaps. If anything is off, adjust coordinates and re-render.
+Check that fill text lands in blank spaces (not on labels/sub-labels), checkmarks land in checkbox squares, and nothing overlaps. If anything is off, edit the creation script (adjust coordinates) and re-run it with `bun`.
 
 ### Visual review loop
 
@@ -294,7 +306,7 @@ After filling the provider's form (whether via form fields or coordinate drawing
 1. **Render the filled PDF to an image** and visually inspect the result.
 2. **Check for problems:** overlapping text, misalignment, text outside field boundaries, unreadable small text, checkmarks in wrong positions.
 3. **If the form used coordinate-based drawing**, show the rendered image to the user and specifically ask: *"I've filled out your provider's form -- does the text alignment look right to you? If anything is misaligned or hard to read, let me know and I'll adjust. You also have the option of filling out the blank form yourself, or I can use a standard access request form instead."*
-4. **If the user flags problems**, adjust coordinates and retry. Allow up to two rounds of adjustment.
+4. **If the user flags problems**, edit the creation script (`.creation-script.ts`) to adjust coordinates and re-run it. Allow up to two rounds of adjustment.
 5. **If it's still not right after two rounds**, offer two options:
    - Provide the blank provider form for the user to fill out manually (print and handwrite, or fill in their own PDF editor)
    - Fall back to the generic access request form, which uses fillable fields and will always be clean
