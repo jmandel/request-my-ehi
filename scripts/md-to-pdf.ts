@@ -136,34 +136,41 @@ class MdPdf {
       }
 
       // Blockquote - thin border box (fax-friendly)
-      if (line.startsWith("> ")) {
+      // Match lines starting with "> " or just ">"
+      if (line.startsWith(">")) {
         const qLines: string[] = [];
-        while (i < lines.length && lines[i].startsWith("> ")) {
-          qLines.push(lines[i].slice(2));
+        while (i < lines.length && lines[i].startsWith(">")) {
+          // Strip "> " or just ">" from start
+          const content = lines[i].replace(/^>\s?/, "");
+          qLines.push(content);
           i++;
         }
         
         this.font(false, true, 10);
         const qText = this.clean(qLines.join(" "));
-        const wrapped = this.doc.splitTextToSize(qText, CONTENT_WIDTH - 16);
-        const totalHeight = wrapped.length * LINE_HEIGHT + 12;
+        const wrapped = this.doc.splitTextToSize(qText, CONTENT_WIDTH - 20);
+        const boxPadding = 6;
+        const totalHeight = wrapped.length * LINE_HEIGHT + boxPadding * 2;
         
+        this.y += 8; // space before
         this.newPageIfNeeded(totalHeight);
-        const startY = this.y - 8;
+        const boxTop = this.y - 4;
         
         // Render text
+        this.y += boxPadding;
         for (const wl of wrapped) {
-          this.doc.text(wl, MARGIN + 8, this.y);
+          this.doc.text(wl, MARGIN + 10, this.y);
           this.y += LINE_HEIGHT;
         }
         
         // Draw thin border box
+        const boxBottom = this.y + boxPadding - LINE_HEIGHT + 4;
         this.doc.setDrawColor(0);
         this.doc.setLineWidth(0.5);
-        this.doc.rect(MARGIN, startY, CONTENT_WIDTH, this.y - startY + 4);
+        this.doc.rect(MARGIN, boxTop, CONTENT_WIDTH, boxBottom - boxTop);
         this.doc.setLineWidth(1);
         
-        this.y += 10;
+        this.y += 8; // space after
         continue;
       }
 

@@ -281,15 +281,14 @@ Create a markdown file that reproduces the form's structure and content with the
 
 I authorize the release of my protected health information as described above.
 
-**Patient Signature:**
+**Patient Signature:** __________________ **Date:** February 19, 2025
 
 ![Signature](/tmp/signature.png)
 
-| | |
-|---|---|
-| Printed Name | Jane Doe |
-| Date | February 19, 2025 |
+**Printed Name:** Jane Doe
 ```
+
+**Important:** Do not place signature images inside table cells — the renderer does not support images in tables. Use the format above: signature label and date on one line, image below, printed name below that.
 
 **Tips for high-fidelity transcription:**
 
