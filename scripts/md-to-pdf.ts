@@ -192,23 +192,120 @@ export class MdPdf {
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
       .replace(/&quot;/g, '"')
+      .replace(/☑/g, "[X]")
+      .replace(/☐/g, "[ ]")
       .replace(/\*\*\*(.+?)\*\*\*/g, "$1")
       .replace(/\*\*(.+?)\*\*/g, "$1")
-      .replace(/\*(.+?)\*/g, "$1");
+      .replace(/\*(.+?)\*/g, "$1")
+      .replace(/==(.+?)==/g, "$1")
+      // Strip markdown links to display text only
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
   }
 
-  private text(str: string, x: number, maxW: number, context = "paragraph"): number {
+  // Parse text into segments, distinguishing ==filled== values, links, and plain text.
+  // [X] and [x] are always treated as filled (checked boxes are patient actions).
+  private parseSegments(str: string): Array<{ text: string; filled: boolean; url?: string }> {
+    // Auto-highlight checked boxes before parsing ==...== markers
+    const normalized = str.replace(/(?<!=)(\[[xX]\])(?!=)/g, "==$1==");
+    const segments: Array<{ text: string; filled: boolean; url?: string }> = [];
+    const re = /==((?:(?!==).)+)==/g;
+    let lastIndex = 0;
+    let match;
+    while ((match = re.exec(normalized)) !== null) {
+      if (match.index > lastIndex) {
+        this.extractLinks(normalized.slice(lastIndex, match.index), false, segments);
+      }
+      this.extractLinks(match[1], true, segments);
+      lastIndex = re.lastIndex;
+    }
+    if (lastIndex < normalized.length) {
+      this.extractLinks(normalized.slice(lastIndex), false, segments);
+    }
+    return segments.length ? segments : [{ text: this.clean(str), filled: false }];
+  }
+
+  // Extract markdown links and bare URLs from text into segments
+  private extractLinks(str: string, filled: boolean, out: Array<{ text: string; filled: boolean; url?: string }>) {
+    // Match markdown links [text](url) and bare URLs
+    const re = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)|(https?:\/\/[^\s<>)\]]+)/g;
+    let lastIndex = 0;
+    let match;
+    while ((match = re.exec(str)) !== null) {
+      if (match.index > lastIndex) {
+        out.push({ text: this.clean(str.slice(lastIndex, match.index)), filled });
+      }
+      if (match[1] !== undefined) {
+        // Markdown link: [text](url)
+        out.push({ text: this.clean(match[1]), filled, url: match[2] });
+      } else {
+        // Bare URL
+        out.push({ text: match[3], filled, url: match[3] });
+      }
+      lastIndex = re.lastIndex;
+    }
+    if (lastIndex < str.length) {
+      out.push({ text: this.clean(str.slice(lastIndex)), filled });
+    }
+  }
+
+  // Render a line with ==filled== segments in bold+blue, links in blue+underline, rest in normal+black
+  private drawSegments(segments: Array<{ text: string; filled: boolean; url?: string }>, x: number, y: number, baseBold: boolean, baseSize: number, opts?: { baseline?: string }) {
+    let curX = x;
+    for (const seg of segments) {
+      if (!seg.text) continue;
+      if (seg.url) {
+        this.font(baseBold, false, baseSize);
+        this.doc.setTextColor(0, 0, 180);
+      } else if (seg.filled) {
+        this.font(true, false, baseSize);
+        this.doc.setTextColor(0, 0, 180);
+      } else {
+        this.font(baseBold, false, baseSize);
+        this.doc.setTextColor(0, 0, 0);
+      }
+      const textW = this.measureText(seg.text);
+      this.doc.text(seg.text, curX, y, opts as any);
+      if (seg.url) {
+        // Add clickable link annotation covering the full text width
+        this.doc.link(curX, y - baseSize, textW, baseSize + 2, { url: seg.url });
+      }
+      curX += textW;
+    }
+    // Reset to defaults
+    this.doc.setTextColor(0, 0, 0);
+  }
+
+  // Wrap text respecting max width, then render each line with highlight segments
+  private textWithSegments(str: string, x: number, maxW: number, baseBold: boolean, baseSize: number, context = "paragraph"): number {
     const clean = this.clean(str);
     const lines = this.doc.splitTextToSize(clean, maxW);
+    // Build a flat cleaned string and a parallel segment map from the original
+    const segments = this.parseSegments(str);
+    // For each wrapped line, find matching segments by walking through segment text
+    let segIdx = 0, segOffset = 0;
     for (const line of lines) {
       this.newPageIfNeeded(LINE_HEIGHT);
-      const lineWidth = this.measureText(line);
-      this.checkHorizontal(x, lineWidth, context, line);
-      this.doc.text(line, x, this.y);
+      // Build segments for this specific line
+      const lineSegs: Array<{ text: string; filled: boolean; url?: string }> = [];
+      let remaining = line.length;
+      while (remaining > 0 && segIdx < segments.length) {
+        const seg = segments[segIdx];
+        const available = seg.text.length - segOffset;
+        const take = Math.min(available, remaining);
+        lineSegs.push({ text: seg.text.slice(segOffset, segOffset + take), filled: seg.filled, url: seg.url });
+        segOffset += take;
+        remaining -= take;
+        if (segOffset >= seg.text.length) { segIdx++; segOffset = 0; }
+      }
+      this.drawSegments(lineSegs, x, this.y, baseBold, baseSize);
       this.checkVertical(this.y, context);
       this.y += LINE_HEIGHT;
     }
     return lines.length;
+  }
+
+  private text(str: string, x: number, maxW: number, context = "paragraph"): number {
+    return this.textWithSegments(str, x, maxW, false, 10, context);
   }
 
   private loadImage(src: string): string | null {
@@ -220,7 +317,13 @@ export class MdPdf {
     return `data:${mime};base64,${readFileSync(p).toString("base64")}`;
   }
 
-  render(md: string) {
+  render(md: string, outputPath?: string) {
+    // Save input markdown alongside the output PDF when EHI_KEEP_INTERMEDIATES is set (e.g., during test runs)
+    if (outputPath && process.env.EHI_KEEP_INTERMEDIATES) {
+      const inputPath = outputPath.replace(/\.pdf$/i, ".input.keepme.md");
+      try { writeFileSync(inputPath, md); console.error(`[md-to-pdf] Saved input markdown to ${inputPath}`); } catch {}
+    }
+
     const lines = md.split("\n");
     let i = 0;
 
@@ -333,9 +436,15 @@ export class MdPdf {
         const src = this.loadImage(imgMatch[2]);
         if (src) {
           try {
-            this.newPageIfNeeded(60);
-            this.doc.addImage(src, MARGIN, this.y, 180, 50);
-            this.y += 60;
+            const props = this.doc.getImageProperties(src);
+            const maxW = CONTENT_WIDTH;
+            const maxH = 50;
+            const scale = Math.min(maxW / props.width, maxH / props.height);
+            const w = props.width * scale;
+            const h = props.height * scale;
+            this.newPageIfNeeded(h + 10);
+            this.doc.addImage(src, MARGIN, this.y, w, h);
+            this.y += h + 10;
           } catch {}
         }
         i++; continue;
@@ -344,9 +453,14 @@ export class MdPdf {
       // Table
       if (line.startsWith("|")) {
         const rows: string[][] = [];
+        const rawRows: string[][] = [];
         while (i < lines.length && lines[i].startsWith("|")) {
-          const cells = lines[i].split("|").slice(1, -1).map(c => this.clean(c.trim()));
-          if (!cells.every(c => /^[-:]+$/.test(c))) rows.push(cells);
+          const rawCells = lines[i].split("|").slice(1, -1).map(c => c.trim());
+          const cells = rawCells.map(c => this.clean(c));
+          if (!cells.every(c => /^[-:]+$/.test(c))) {
+            rows.push(cells);
+            rawRows.push(rawCells);
+          }
           i++;
         }
         if (rows.length) {
@@ -410,9 +524,26 @@ export class MdPdf {
               // Center this cell's text block in the row
               const cellFirstLineCenter = rowCenterY - cellTextHeight / 2 + cellLineHeight / 2;
               
+              // Parse segments from raw cell text for highlight rendering
+              const rawCell = rawRows[ri]?.[ci] || "";
+              const cellSegments = this.parseSegments(rawCell);
+              let segIdx = 0, segOffset = 0;
+              
               for (let li = 0; li < cellLines; li++) {
                 const lineCenter = cellFirstLineCenter + li * cellLineHeight;
-                this.doc.text(wrappedCells[ci][li], cellX, lineCenter, { baseline: "middle" });
+                // Build segments for this wrapped line
+                const lineSegs: Array<{ text: string; filled: boolean }> = [];
+                let remaining = wrappedCells[ci][li].length;
+                while (remaining > 0 && segIdx < cellSegments.length) {
+                  const seg = cellSegments[segIdx];
+                  const available = seg.text.length - segOffset;
+                  const take = Math.min(available, remaining);
+                  lineSegs.push({ text: seg.text.slice(segOffset, segOffset + take), filled: seg.filled });
+                  segOffset += take;
+                  remaining -= take;
+                  if (segOffset >= seg.text.length) { segIdx++; segOffset = 0; }
+                }
+                this.drawSegments(lineSegs, cellX, lineCenter, isHeader, 9, { baseline: "middle" });
               }
             }
             
@@ -433,16 +564,37 @@ export class MdPdf {
           const m = lines[i].match(/^[-*]\s+\[([ xX])\]\s*(.*)$/);
           if (m) {
             this.font(false, false, 10);
-            const box = m[1].toLowerCase() === "x" ? "[X]" : "[ ]";
-            const txt = this.clean(m[2]);
+            const checked = m[1].toLowerCase() === "x";
+            const box = checked ? "[X]" : "[ ]";
+            const rawTxt = m[2];
+            const txt = this.clean(rawTxt);
             const wrapped = this.doc.splitTextToSize(txt, CONTENT_WIDTH - indent);
+            const segments = this.parseSegments(rawTxt);
+            let segIdx = 0, segOffset = 0;
             
             for (let li = 0; li < wrapped.length; li++) {
               this.newPageIfNeeded(LINE_HEIGHT);
               if (li === 0) {
+                // Render checkbox in blue+bold if checked
+                if (checked) {
+                  this.font(true, false, 10);
+                  this.doc.setTextColor(0, 0, 180);
+                }
                 this.doc.text(box, MARGIN, this.y);
+                this.doc.setTextColor(0, 0, 0);
               }
-              this.doc.text(wrapped[li], MARGIN + indent, this.y);
+              const lineSegs: Array<{ text: string; filled: boolean }> = [];
+              let remaining = wrapped[li].length;
+              while (remaining > 0 && segIdx < segments.length) {
+                const seg = segments[segIdx];
+                const available = seg.text.length - segOffset;
+                const take = Math.min(available, remaining);
+                lineSegs.push({ text: seg.text.slice(segOffset, segOffset + take), filled: seg.filled });
+                segOffset += take;
+                remaining -= take;
+                if (segOffset >= seg.text.length) { segIdx++; segOffset = 0; }
+              }
+              this.drawSegments(lineSegs, MARGIN + indent, this.y, false, 10);
               this.checkVertical(this.y, "checkbox");
               this.y += LINE_HEIGHT;
             }
@@ -458,15 +610,29 @@ export class MdPdf {
         const indent = 16; // Space for bullet
         while (i < lines.length && lines[i].match(/^[-*]\s+[^\[]/)) {
           this.font(false, false, 10);
-          const txt = this.clean(lines[i].replace(/^[-*]\s+/, ""));
+          const rawTxt = lines[i].replace(/^[-*]\s+/, "");
+          const txt = this.clean(rawTxt);
           const wrapped = this.doc.splitTextToSize(txt, CONTENT_WIDTH - indent);
+          const segments = this.parseSegments(rawTxt);
+          let segIdx = 0, segOffset = 0;
           
           for (let li = 0; li < wrapped.length; li++) {
             this.newPageIfNeeded(LINE_HEIGHT);
             if (li === 0) {
               this.doc.text("•", MARGIN, this.y);
             }
-            this.doc.text(wrapped[li], MARGIN + indent, this.y);
+            const lineSegs: Array<{ text: string; filled: boolean }> = [];
+            let remaining = wrapped[li].length;
+            while (remaining > 0 && segIdx < segments.length) {
+              const seg = segments[segIdx];
+              const available = seg.text.length - segOffset;
+              const take = Math.min(available, remaining);
+              lineSegs.push({ text: seg.text.slice(segOffset, segOffset + take), filled: seg.filled });
+              segOffset += take;
+              remaining -= take;
+              if (segOffset >= seg.text.length) { segIdx++; segOffset = 0; }
+            }
+            this.drawSegments(lineSegs, MARGIN + indent, this.y, false, 10);
             this.checkVertical(this.y, "bullet");
             this.y += LINE_HEIGHT;
           }
@@ -482,15 +648,29 @@ export class MdPdf {
         let n = 1;
         while (i < lines.length && lines[i].match(/^\d+\.\s/)) {
           this.font(false, false, 10);
-          const txt = this.clean(lines[i].replace(/^\d+\.\s+/, ""));
+          const rawTxt = lines[i].replace(/^\d+\.\s+/, "");
+          const txt = this.clean(rawTxt);
           const wrapped = this.doc.splitTextToSize(txt, CONTENT_WIDTH - indent);
+          const segments = this.parseSegments(rawTxt);
+          let segIdx = 0, segOffset = 0;
           
           for (let li = 0; li < wrapped.length; li++) {
             this.newPageIfNeeded(LINE_HEIGHT);
             if (li === 0) {
               this.doc.text(`${n}.`, MARGIN, this.y);
             }
-            this.doc.text(wrapped[li], MARGIN + indent, this.y);
+            const lineSegs: Array<{ text: string; filled: boolean }> = [];
+            let remaining = wrapped[li].length;
+            while (remaining > 0 && segIdx < segments.length) {
+              const seg = segments[segIdx];
+              const available = seg.text.length - segOffset;
+              const take = Math.min(available, remaining);
+              lineSegs.push({ text: seg.text.slice(segOffset, segOffset + take), filled: seg.filled });
+              segOffset += take;
+              remaining -= take;
+              if (segOffset >= seg.text.length) { segIdx++; segOffset = 0; }
+            }
+            this.drawSegments(lineSegs, MARGIN + indent, this.y, false, 10);
             this.checkVertical(this.y, "numbered list");
             this.y += LINE_HEIGHT;
           }
@@ -522,6 +702,6 @@ if (import.meta.main) {
   if (!existsSync(input)) { console.error(`Not found: ${input}`); process.exit(1); }
 
   const r = new MdPdf(dirname(resolve(input)));
-  r.render(readFileSync(input, "utf-8"));
+  r.render(readFileSync(input, "utf-8"), resolve(output));
   r.save(output);
 }

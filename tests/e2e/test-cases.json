@@ -1,0 +1,316 @@
+[
+  {
+    "id": "mayo-clinic",
+    "provider": "Mayo Clinic",
+    "location": "Rochester, MN",
+    "size": "Large",
+    "ehr": "Epic",
+    "form": "Flat",
+    "notes": "Multiple forms published; agent must select the correct one"
+  },
+  {
+    "id": "cleveland-clinic",
+    "provider": "Cleveland Clinic",
+    "location": "Cleveland, OH",
+    "size": "Large",
+    "ehr": "Epic",
+    "form": "Fillable",
+    "notes": "Multi-state academic system"
+  },
+  {
+    "id": "geisinger",
+    "provider": "Geisinger",
+    "location": "Danville, PA",
+    "size": "Large",
+    "ehr": "Epic",
+    "form": "Flat",
+    "notes": "Has separate right-of-access form; agent must pick correct one"
+  },
+  {
+    "id": "kaiser-permanente",
+    "provider": "Kaiser Permanente",
+    "location": "Oakland, CA",
+    "size": "Large",
+    "ehr": "Epic",
+    "form": "Fillable",
+    "notes": "Integrated payer-provider; records workflow may differ"
+  },
+  {
+    "id": "medstar-health",
+    "provider": "MedStar Health",
+    "location": "Washington, DC",
+    "size": "Large",
+    "ehr": "Cerner",
+    "form": "Flat",
+    "notes": "10-hospital regional system; tests non-Epic path at scale"
+  },
+  {
+    "id": "adventhealth",
+    "provider": "AdventHealth",
+    "location": "Orlando, FL",
+    "size": "Large",
+    "ehr": "Cerner",
+    "form": "Flat",
+    "notes": "50+ hospitals; agent must identify correct facility"
+  },
+  {
+    "id": "va-medical",
+    "provider": "VA Medical Centers",
+    "location": "Nationwide",
+    "size": "Large",
+    "ehr": "Cerner",
+    "form": "Flat",
+    "notes": "Federal, standardized form"
+  },
+  {
+    "id": "hca-healthcare",
+    "provider": "HCA Healthcare",
+    "location": "Nashville, TN",
+    "size": "Large",
+    "ehr": "MEDITECH Expanse",
+    "notes": "Largest for-profit health system"
+  },
+  {
+    "id": "steward-health-care",
+    "provider": "Steward Health Care",
+    "location": "Dallas, TX",
+    "size": "Large",
+    "ehr": "MEDITECH Expanse",
+    "notes": "Multi-state system"
+  },
+  {
+    "id": "commonspirit-health",
+    "provider": "CommonSpirit Health",
+    "location": "Chicago, IL",
+    "size": "Large",
+    "ehr": "Mixed",
+    "notes": "Patchwork of EHRs from mergers; agent can't assume single vendor"
+  },
+  {
+    "id": "uw-health",
+    "provider": "UW Health",
+    "location": "Madison, WI",
+    "size": "Community",
+    "ehr": "Epic",
+    "form": "Fillable",
+    "notes": "Epic's home market; baseline happy-path test"
+  },
+  {
+    "id": "dartmouth-health",
+    "provider": "Dartmouth Health",
+    "location": "Lebanon, NH",
+    "size": "Community",
+    "ehr": "Epic",
+    "form": "Fillable",
+    "notes": "Mid-size academic center in rural northern New England"
+  },
+  {
+    "id": "christianacare",
+    "provider": "ChristianaCare",
+    "location": "Wilmington, DE",
+    "size": "Community",
+    "ehr": "Epic",
+    "notes": "Recently migrated to Epic; EHI Export may not be well-exercised"
+  },
+  {
+    "id": "sanford-health",
+    "provider": "Sanford Health",
+    "location": "Sioux Falls, SD",
+    "size": "Community",
+    "ehr": "Epic",
+    "form": "Flat",
+    "notes": "Large rural health system"
+  },
+  {
+    "id": "brattleboro-memorial",
+    "provider": "Brattleboro Memorial Hospital",
+    "location": "Brattleboro, VT",
+    "size": "Community",
+    "ehr": "Cerner",
+    "notes": "61-bed rural hospital; HIM dept likely 1-3 staff"
+  },
+  {
+    "id": "pioneers-memorial",
+    "provider": "Pioneers Memorial Healthcare District",
+    "location": "Brawley, CA",
+    "size": "Community",
+    "ehr": "Cerner",
+    "notes": "107-bed rural hospital in underserved border region"
+  },
+  {
+    "id": "uintah-basin",
+    "provider": "Uintah Basin Healthcare",
+    "location": "Vernal, UT",
+    "size": "Community",
+    "ehr": "Cerner",
+    "notes": "Rural community hospital"
+  },
+  {
+    "id": "heywood-healthcare",
+    "provider": "Heywood Healthcare",
+    "location": "Gardner, MA",
+    "size": "Community",
+    "ehr": "MEDITECH",
+    "notes": "~100-bed community hospital; tests MEDITECH path"
+  },
+  {
+    "id": "southern-ohio-medical",
+    "provider": "Southern Ohio Medical Center",
+    "location": "Portsmouth, OH",
+    "size": "Community",
+    "ehr": "MEDITECH Expanse",
+    "notes": "Community hospital on MEDITECH Expanse"
+  },
+  {
+    "id": "san-luis-valley",
+    "provider": "San Luis Valley Health",
+    "location": "Alamosa, CO",
+    "size": "Community",
+    "ehr": "MEDITECH Expanse",
+    "notes": "Rural community hospital on MEDITECH Expanse"
+  },
+  {
+    "id": "village-medical",
+    "provider": "Village Medical",
+    "location": "Nationwide",
+    "size": "Mid-group",
+    "ehr": "athenahealth",
+    "notes": "Ambulatory-only; no traditional HIM department"
+  },
+  {
+    "id": "privia-health",
+    "provider": "Privia Health",
+    "location": "Arlington, VA",
+    "size": "Mid-group",
+    "ehr": "athenahealth",
+    "notes": "Management company over independent practices; unclear who holds records"
+  },
+  {
+    "id": "middletown-medical",
+    "provider": "Middletown Medical",
+    "location": "Middletown, NY",
+    "size": "Mid-group",
+    "ehr": "eClinicalWorks",
+    "notes": "145+ providers, 22 locations, multi-specialty"
+  },
+  {
+    "id": "advancedhealth",
+    "provider": "AdvancedHEALTH",
+    "location": "Knoxville, TN",
+    "size": "Mid-group",
+    "ehr": "eClinicalWorks",
+    "notes": "550+ providers, 40+ specialties, purely ambulatory"
+  },
+  {
+    "id": "liberty-resources",
+    "provider": "Liberty Resources",
+    "location": "Syracuse, NY",
+    "size": "Mid-group",
+    "ehr": "NextGen",
+    "notes": "Behavioral health + primary care"
+  },
+  {
+    "id": "first-choice-neurology",
+    "provider": "First Choice Neurology",
+    "location": "Miami, FL",
+    "size": "Mid-group",
+    "ehr": "eClinicalWorks",
+    "notes": "Specialty physician group"
+  },
+  {
+    "id": "central-virginia-health",
+    "provider": "Central Virginia Health Services",
+    "location": "New Canton, VA",
+    "size": "FQHC",
+    "ehr": "eClinicalWorks",
+    "notes": "Federally qualified health center"
+  },
+  {
+    "id": "ampla-health",
+    "provider": "Ampla Health",
+    "location": "Yuba City, CA",
+    "size": "FQHC",
+    "ehr": "eClinicalWorks",
+    "notes": "Federally qualified health center"
+  },
+  {
+    "id": "st-croix-regional",
+    "provider": "St. Croix Regional Family Health Center",
+    "location": "Princeton, ME",
+    "size": "FQHC",
+    "ehr": "eClinicalWorks",
+    "notes": "Federally qualified health center"
+  },
+  {
+    "id": "danvers-family-doctors",
+    "provider": "Danvers Family Doctors",
+    "location": "Danvers, MA",
+    "size": "Small",
+    "ehr": "athenahealth",
+    "notes": "Small independent practice"
+  },
+  {
+    "id": "east-flagstaff-family",
+    "provider": "East Flagstaff Family Medicine",
+    "location": "Flagstaff, AZ",
+    "size": "Small",
+    "ehr": "athenahealth",
+    "notes": "Small independent practice"
+  },
+  {
+    "id": "dallas-internal-medicine",
+    "provider": "Dallas Internal Medicine Group",
+    "location": "Dallas, TX",
+    "size": "Small",
+    "ehr": "eClinicalWorks",
+    "notes": "Small independent practice"
+  },
+  {
+    "id": "sierra-vista",
+    "provider": "Sierra Vista Hospital",
+    "location": "Truth or Consequences, NM",
+    "size": "Critical Access",
+    "ehr": "Cerner",
+    "notes": "25-bed; minimal IT/HIM staff; hardest real-world scenario"
+  },
+  {
+    "id": "macon-community",
+    "provider": "Macon Community Hospital",
+    "location": "Lafayette, TN",
+    "size": "Critical Access",
+    "ehr": "Cerner",
+    "notes": "25-bed critical access hospital"
+  },
+  {
+    "id": "syracuse-area-health",
+    "provider": "Syracuse Area Health",
+    "location": "Syracuse, NE",
+    "size": "Critical Access",
+    "ehr": "Cerner",
+    "notes": "10-bed critical access hospital"
+  },
+  {
+    "id": "pioneers-medical-center",
+    "provider": "Pioneers Medical Center",
+    "location": "Meeker, CO",
+    "size": "Critical Access",
+    "ehr": "MEDITECH Expanse",
+    "notes": "MEDITECH Expanse MaaS"
+  },
+  {
+    "id": "columbia-county-health",
+    "provider": "Columbia County Health System",
+    "location": "Dayton, WA",
+    "size": "Critical Access",
+    "ehr": "MEDITECH Expanse",
+    "notes": "MEDITECH Expanse MaaS"
+  },
+  {
+    "id": "scotland-county-hospital",
+    "provider": "Scotland County Hospital",
+    "location": "Memphis, MO",
+    "size": "Critical Access",
+    "ehr": "MEDITECH Expanse",
+    "notes": "MEDITECH Expanse MaaS"
+  }
+]
