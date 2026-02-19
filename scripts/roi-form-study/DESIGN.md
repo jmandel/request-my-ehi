@@ -45,22 +45,22 @@ Produce a structured set of organization categories that ensures diverse, repres
 | Axis | Values |
 |------|--------|
 | **Organization size** | Large health system (10+ hospitals), Regional system (2-9 hospitals), Community hospital (single), Physician group (multi-specialty), Small practice (1-5 providers), FQHC, Critical access hospital |
-| **EHR vendor** | Epic, Oracle Cerner, MEDITECH, athenahealth, eClinicalWorks, NextGen, Veradigm/Allscripts, Other/Unknown |
 | **Geography** | Northeast, Southeast, Midwest, Southwest, West, Rural, Urban, Suburban |
 | **Ownership type** | Non-profit, For-profit, Government/public, Academic medical center, VA/military |
+
+Note: EHR vendor is deliberately excluded as a stratification axis. ROI forms are typically managed by Health Information Management (HIM) departments and legal/compliance teams, not by EHR vendors. The form's quality is driven by organizational culture, resources, and state regulations — not by which software the provider uses for clinical care.
 
 ### Output: `org_categories.json`
 
 ```json
 [
   {
-    "category_id": "large-nonprofit-epic-midwest",
+    "category_id": "large-nonprofit-midwest",
     "size": "Large health system",
-    "ehr": "Epic",
     "region": "Midwest",
     "ownership": "Non-profit",
     "target_count": 3,
-    "description": "Large non-profit health systems in the Midwest running Epic"
+    "description": "Large non-profit health systems in the Midwest"
   }
 ]
 ```
@@ -69,7 +69,7 @@ Produce a structured set of organization categories that ensures diverse, repres
 
 Not every cell in the full cross-product needs to be filled (many combinations don't exist in practice). The prompt should:
 
-1. Enumerate realistic combinations (e.g., Critical Access + Epic is uncommon but exists; Critical Access + MEDITECH is very common)
+1. Enumerate realistic combinations (e.g., Critical Access hospitals are mostly rural; Academic medical centers are mostly non-profit)
 2. Target 5-10 organizations per major size category
 3. Ensure geographic spread within each category
 4. Aim for ~200-300 total organizations across all categories
@@ -85,7 +85,6 @@ landscape.
 
 Define categories by crossing these axes where realistic combinations exist:
 - Organization size: [list]
-- EHR vendor: [list]
 - Geography: [list]
 - Ownership type: [list]
 
@@ -108,16 +107,14 @@ For each category from Stage 1, identify real organizations that match the descr
 For each category, the LLM uses web search to find matching organizations. The prompt should guide it to:
 
 1. **Search for organizations matching the category description** using queries like:
-   - `"[size] [region] hospital [EHR vendor] EHR"`
+   - `"[size] [region] hospital"` or `"[size] health system [state]"`
    - CHNA (Community Health Needs Assessment) reports that list hospital characteristics
    - CMS Hospital Compare data references
-   - EHR vendor customer lists and case studies
    - State hospital association directories
 
 2. **Verify each candidate** by confirming:
    - The organization exists and is currently operating
    - It matches the stated size/type
-   - Its EHR vendor is confirmed (via published info, job postings mentioning the vendor, or news articles)
    - It has a website with a patient-facing section
 
 3. **Collect metadata** for each organization
@@ -129,10 +126,8 @@ For each category, the LLM uses web search to find matching organizations. The p
   {
     "org_id": "mayo-clinic",
     "name": "Mayo Clinic",
-    "category_id": "large-nonprofit-epic-midwest",
+    "category_id": "large-nonprofit-midwest",
     "size": "Large health system",
-    "ehr": "Epic",
-    "ehr_confidence": "high",
     "region": "Midwest",
     "state": "MN",
     "city": "Rochester",
@@ -149,15 +144,12 @@ For each category, the LLM uses web search to find matching organizations. The p
 ```
 Find {target_count} healthcare organizations matching this description:
 - Size: {size}
-- EHR vendor: {ehr}
 - Region: {region}
 - Ownership: {ownership}
 
 For each organization, verify:
 1. It currently operates and has a patient-facing website
-2. The EHR vendor is confirmed (cite your source: job posting, news article,
-   vendor case study, etc.)
-3. It matches the size and ownership type described
+2. It matches the size and ownership type described
 
 Use web search to find and verify candidates. Provide structured output
 with the fields listed below.
@@ -380,7 +372,7 @@ Each dimension is scored 1-5:
 {
   "org_id": "mayo-clinic",
   "org_name": "Mayo Clinic",
-  "category_id": "large-nonprofit-epic-midwest",
+  "category_id": "large-nonprofit-midwest",
   "form_url": "https://...",
   "scores": {
     "findability": {
@@ -498,14 +490,13 @@ Aggregate scores across all organizations and produce summary statistics, visual
 1. **Distribution of overall grades** — histogram of A/B/C/D/F across all orgs
 2. **Dimension breakdown** — which dimensions are strongest/weakest overall?
 3. **By organization size** — do large systems score better or worse than small practices?
-4. **By EHR vendor** — do Epic sites tend to have better forms than Cerner sites?
-5. **By geography** — regional patterns?
-6. **By ownership type** — non-profit vs. for-profit vs. government?
-7. **Worst barriers** — most common compliance issues
-8. **Best practices** — exemplary forms worth highlighting
-9. **Image-only scans** — what percentage of forms are image-only?
-10. **Fillable fields** — what percentage have any fillable fields? Complete fields?
-11. **No form online** — what percentage of orgs have no form findable online?
+4. **By geography** — regional patterns?
+5. **By ownership type** — non-profit vs. for-profit vs. government?
+6. **Worst barriers** — most common compliance issues
+7. **Best practices** — exemplary forms worth highlighting
+8. **Image-only scans** — what percentage of forms are image-only?
+9. **Fillable fields** — what percentage have any fillable fields? Complete fields?
+10. **No form online** — what percentage of orgs have no form findable online?
 
 ### Output
 
