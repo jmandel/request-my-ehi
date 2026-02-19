@@ -235,9 +235,19 @@ Always flatten the form after filling so fields render as static text.
 
 **Important**: Fill all pages of the provider's form that have fields to fill out. Only skip pages that have no fillable content (e.g., "For Office Use Only" pages, instruction-only pages).
 
-### Filling a flat/scanned provider form (coordinate-based drawing)
+### Filling a flat/scanned provider form
 
-When the provider's form has no fillable fields, use pdf-lib to draw text, checkmarks, and images directly onto the PDF by coordinate.
+When the provider's form has no fillable fields, you have two options:
+
+**Option A: Coordinate-based drawing** — Draw text directly onto the original PDF using pdf-lib. Best when the form layout is simple and you can hit the field positions accurately.
+
+**Option B: Markdown transcription** — Transcribe the form to markdown with filled values, then convert to PDF. Best when coordinate-based filling is proving difficult, or when the form has complex layout that's hard to overlay.
+
+Try coordinate-based drawing first (it preserves the original form's appearance). Fall back to markdown transcription if you can't get clean results after one or two attempts.
+
+#### Option A: Coordinate-based drawing
+
+Use pdf-lib to draw text, checkmarks, and images directly onto the PDF by coordinate.
 
 #### Step 1: Render the blank form and extract coordinates
 
@@ -289,6 +299,114 @@ pdftoppm -png -r 200 -singlefile /tmp/provider_form_filled.pdf /tmp/provider_for
 ```
 
 Look at the result. If text is misaligned, overlapping labels, or landing outside field boundaries, adjust coordinates in your script and re-run. Iterate until it looks right.
+
+#### Option B: Markdown transcription
+
+If coordinate-based filling isn't working well, transcribe the form to markdown and convert to PDF. This produces a clean, readable document that faithfully represents the form content with filled values.
+
+**Step 1: Transcribe the form to markdown**
+
+Create a markdown file that reproduces the form's structure and content with the patient's information filled in:
+
+```markdown
+# Authorization for Release of Health Information
+
+**Provider:** University Health Partners
+
+---
+
+## Patient Information
+
+| Field | Value |
+| ----- | ----- |
+| Patient Name | **Jane Doe** |
+| Date of Birth | January 15, 1985 |
+| Address | 123 Main Street, Madison, WI 53711 |
+| Phone | (608) 555-0123 |
+
+## Information Requested
+
+- [ ] Complete Medical Record
+- [ ] Discharge Summary
+- [x] Other (see below)
+
+> **Electronic Health Information (EHI) Export** — Complete export of all 
+> structured data pursuant to 45 CFR § 170.315(b)(10). See attached Appendix A.
+
+## Authorization
+
+I authorize the release of my protected health information as described above.
+
+**Patient Signature:**
+
+![Signature](/tmp/signature.png)
+
+| | |
+|---|---|
+| Printed Name | Jane Doe |
+| Date | February 19, 2025 |
+```
+
+**Tips for high-fidelity transcription:**
+
+- **Preserve all original text** — Include section headers, instructions, legal language, and fine print exactly as they appear on the form
+- **Use tables for field/value pairs** — Makes alignment clean and professional
+- **Use `[x]` / `[ ]` for checkboxes** — Renders as `[X]` checked or `[ ]` unchecked
+- **Use blockquotes (`>`) for special callouts** — Good for the EHI Export description or legal notices
+- **Include horizontal rules (`---`)** — Helps separate sections visually
+- **Bold important values** — Use `**text**` to highlight filled-in patient data
+- **Match the original form's organization** — Same sections in same order
+
+**Step 2: Add the signature**
+
+The signature can be included in two ways:
+
+1. **File path** — If you have the signature saved to disk:
+   ```markdown
+   ![Signature](/tmp/signature.png)
+   ```
+
+2. **Base64 data URL** — Embed the image directly:
+   ```markdown
+   ![Signature](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...)
+   ```
+
+To get a base64 data URL from a file:
+```bash
+echo "data:image/png;base64,$(base64 -w0 /tmp/signature.png)"
+```
+
+Place the signature image in the appropriate location (usually above or next to "Patient Signature" and the date).
+
+**Step 3: Convert to PDF**
+
+```bash
+bun <skill-dir>/scripts/md-to-pdf.ts /tmp/filled_form.md /tmp/provider_form_filled.pdf
+```
+
+This produces a clean PDF with:
+- Proper typography and spacing
+- Tables rendered with borders
+- Checkboxes as `[X]` or `[ ]`
+- Embedded signature image
+- Automatic page breaks
+
+**Step 4: Verify the result**
+
+```bash
+pdftoppm -png -r 150 -singlefile /tmp/provider_form_filled.pdf /tmp/preview
+```
+
+Review the rendered PDF. The markdown approach typically produces clean results on the first try, but verify the signature placement and overall layout before proceeding.
+
+**When to use markdown transcription:**
+- Coordinate-based filling failed after 1-2 attempts
+- The original form is a poor scan or has complex layout
+- The form has many sections that are hard to overlay accurately
+- You want a guaranteed clean result
+
+**What to tell the patient:**
+> "Your provider's form isn't digitally fillable, so I've created a clean version that includes all the same information and sections. It's formatted as a standard authorization form with your details filled in. Providers are required to accept any written request that meets HIPAA requirements."
 
 ### Visual review loop
 
@@ -535,6 +653,7 @@ Also prepare them for potential pushback:
 | `generate-appendix.ts` | `bun generate-appendix.ts ['{"vendor": {...}}']` |
 | `generate-cover-letter.ts` | `bun generate-cover-letter.ts ['{"outputPath": "..."}']` |
 | `fill-and-merge.ts` | `bun fill-and-merge.ts <config.json>` |
+| `md-to-pdf.ts` | `bun md-to-pdf.ts <input.md> [output.pdf]` |
 | `create-signature-session.ts` | `bun create-signature-session.ts [--instructions <text>] [--signer-name <name>]` |
 | `poll-signature.ts` | `bun poll-signature.ts <session-id> '<private-key-jwk>'` |
 | `send-fax.ts` | `bun send-fax.ts <fax-number> <pdf-path>` |
