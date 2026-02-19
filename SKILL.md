@@ -186,12 +186,14 @@ Provider forms often include questions or fields we didn't ask the patient about
 - Purpose of disclosure
 - Whether to include sensitive records (mental health, HIV, substance abuse)
 
-**When you encounter these:** Ask the patient for their preferences before filling. Don't guess or leave blank. For EHI Export requests, typical answers are:
-- Date range: "All available records" or "From [first visit] to present"
-- Record types: "Complete medical record / EHI Export" (not just selected categories)
-- Delivery: Electronic format preferred (USB drive, secure download, CD)
+**Default to maximal data collection** — don't ask the patient about routine choices. Fill in:
+- Date range: "All available records" or "From earliest to present"
+- Record types: "Complete medical record / EHI Export" (check all boxes or write "all")
+- Delivery: Electronic format (USB drive, secure download, CD)
 - Purpose: "Personal use" or "At patient's request"
-- Sensitive records: Usually include everything unless patient specifies otherwise
+- Sensitive records: Include all
+
+**Inform, don't ask:** When presenting the filled form for review, briefly note any choices made (e.g., "I selected 'all record types' and 'all dates' — let me know if you'd prefer specific date ranges or categories"). This saves the patient a conversation turn while still giving them the option to adjust.
 
 ### The generic access request form
 
