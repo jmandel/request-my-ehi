@@ -38,11 +38,21 @@ class MdPdf {
     this.doc.setFontSize(size);
   }
 
+  // Clean HTML entities and normalize text
+  private clean(str: string): string {
+    return str
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/\*\*\*(.+?)\*\*\*/g, "$1")
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      .replace(/\*(.+?)\*/g, "$1");
+  }
+
   private text(str: string, x: number, maxW: number): number {
-    // Strip markdown formatting for display, return lines used
-    const clean = str.replace(/\*\*\*(.+?)\*\*\*/g, "$1")
-                     .replace(/\*\*(.+?)\*\*/g, "$1")
-                     .replace(/\*(.+?)\*/g, "$1");
+    const clean = this.clean(str);
     const lines = this.doc.splitTextToSize(clean, maxW);
     for (const line of lines) {
       this.newPageIfNeeded(LINE_HEIGHT);
@@ -73,9 +83,15 @@ class MdPdf {
 
       // H1
       if (line.startsWith("# ")) {
-        this.y += 10;
+        this.y += 12;
         this.font(true, false, 18);
-        this.text(line.slice(2), MARGIN, CONTENT_WIDTH);
+        const clean = this.clean(line.slice(2));
+        const wrapped = this.doc.splitTextToSize(clean, CONTENT_WIDTH);
+        for (const wl of wrapped) {
+          this.newPageIfNeeded(22);
+          this.doc.text(wl, MARGIN, this.y);
+          this.y += 22; // More line height for H1
+        }
         this.y += 4;
         i++; continue;
       }
@@ -84,7 +100,13 @@ class MdPdf {
       if (line.startsWith("## ")) {
         this.y += 8;
         this.font(true, false, 14);
-        this.text(line.slice(3), MARGIN, CONTENT_WIDTH);
+        const clean = this.clean(line.slice(3));
+        const wrapped = this.doc.splitTextToSize(clean, CONTENT_WIDTH);
+        for (const wl of wrapped) {
+          this.newPageIfNeeded(18);
+          this.doc.text(wl, MARGIN, this.y);
+          this.y += 18;
+        }
         this.y += 2;
         i++; continue;
       }
@@ -93,39 +115,70 @@ class MdPdf {
       if (line.startsWith("### ")) {
         this.y += 6;
         this.font(true, false, 12);
-        this.text(line.slice(4), MARGIN, CONTENT_WIDTH);
+        const clean = this.clean(line.slice(4));
+        const wrapped = this.doc.splitTextToSize(clean, CONTENT_WIDTH);
+        for (const wl of wrapped) {
+          this.newPageIfNeeded(16);
+          this.doc.text(wl, MARGIN, this.y);
+          this.y += 16;
+        }
         i++; continue;
       }
 
       // HR
       if (/^-{3,}$/.test(line) || /^\*{3,}$/.test(line)) {
         this.y += 6;
+        this.newPageIfNeeded(10);
         this.doc.setDrawColor(200);
         this.doc.line(MARGIN, this.y, PAGE_WIDTH - MARGIN, this.y);
         this.y += 10;
         i++; continue;
       }
 
-      // Blockquote
+      // Blockquote - collect all lines first, then render
       if (line.startsWith("> ")) {
         const qLines: string[] = [];
         while (i < lines.length && lines[i].startsWith("> ")) {
           qLines.push(lines[i].slice(2));
           i++;
         }
+        
+        // Calculate wrapped text first
         this.font(false, true, 10);
-        this.doc.setFillColor(248, 248, 248);
-        const qText = qLines.join(" ");
+        const qText = this.clean(qLines.join(" "));
         const wrapped = this.doc.splitTextToSize(qText, CONTENT_WIDTH - 20);
-        const h = wrapped.length * LINE_HEIGHT + 10;
-        this.newPageIfNeeded(h);
-        this.doc.rect(MARGIN, this.y - 5, CONTENT_WIDTH, h, "F");
-        this.doc.setDrawColor(150);
-        this.doc.line(MARGIN, this.y - 5, MARGIN, this.y + h - 5);
+        const totalHeight = wrapped.length * LINE_HEIGHT + 10;
+        
+        // Check if we need a new page for the whole block
+        this.newPageIfNeeded(Math.min(totalHeight, PAGE_HEIGHT - MARGIN * 2));
+        
+        const startY = this.y;
+        
+        // Render text first
         for (const wl of wrapped) {
+          this.newPageIfNeeded(LINE_HEIGHT);
           this.doc.text(wl, MARGIN + 10, this.y);
           this.y += LINE_HEIGHT;
         }
+        
+        // Draw background and border only on starting page portion
+        const endY = this.y;
+        // Only draw if we didn't cross pages
+        if (endY > startY) {
+          this.doc.setFillColor(248, 248, 248);
+          this.doc.rect(MARGIN, startY - 12, CONTENT_WIDTH, endY - startY + 8, "F");
+          this.doc.setDrawColor(180);
+          this.doc.line(MARGIN, startY - 12, MARGIN, endY - 4);
+          
+          // Re-render text on top of background
+          this.font(false, true, 10);
+          let ty = startY;
+          for (const wl of wrapped) {
+            this.doc.text(wl, MARGIN + 10, ty);
+            ty += LINE_HEIGHT;
+          }
+        }
+        
         this.y += 6;
         continue;
       }
@@ -148,7 +201,7 @@ class MdPdf {
       if (line.startsWith("|")) {
         const rows: string[][] = [];
         while (i < lines.length && lines[i].startsWith("|")) {
-          const cells = lines[i].split("|").slice(1, -1).map(c => c.trim());
+          const cells = lines[i].split("|").slice(1, -1).map(c => this.clean(c.trim()));
           if (!cells.every(c => /^[-:]+$/.test(c))) rows.push(cells);
           i++;
         }
@@ -166,8 +219,7 @@ class MdPdf {
               this.font(false, false, 9);
             }
             for (let ci = 0; ci < rows[ri].length; ci++) {
-              const clean = rows[ri][ci].replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*(.+?)\*/g, "$1");
-              this.doc.text(clean, MARGIN + ci * colW + 4, this.y);
+              this.doc.text(rows[ri][ci], MARGIN + ci * colW + 4, this.y);
             }
             this.doc.setDrawColor(220);
             this.doc.line(MARGIN, this.y + 4, PAGE_WIDTH - MARGIN, this.y + 4);
@@ -186,7 +238,7 @@ class MdPdf {
             this.newPageIfNeeded(LINE_HEIGHT);
             this.font(false, false, 10);
             const box = m[1].toLowerCase() === "x" ? "[X]" : "[ ]";
-            this.doc.text(box + "  " + m[2], MARGIN, this.y);
+            this.doc.text(box + "  " + this.clean(m[2]), MARGIN, this.y);
             this.y += LINE_HEIGHT;
           }
           i++;
@@ -200,7 +252,7 @@ class MdPdf {
         while (i < lines.length && lines[i].match(/^[-*]\s+[^\[]/)) {
           this.newPageIfNeeded(LINE_HEIGHT);
           this.font(false, false, 10);
-          const txt = lines[i].replace(/^[-*]\s+/, "");
+          const txt = this.clean(lines[i].replace(/^[-*]\s+/, ""));
           this.doc.text("•  " + txt, MARGIN, this.y);
           this.y += LINE_HEIGHT;
           i++;
@@ -215,7 +267,7 @@ class MdPdf {
         while (i < lines.length && lines[i].match(/^\d+\.\s/)) {
           this.newPageIfNeeded(LINE_HEIGHT);
           this.font(false, false, 10);
-          const txt = lines[i].replace(/^\d+\.\s+/, "");
+          const txt = this.clean(lines[i].replace(/^\d+\.\s+/, ""));
           this.doc.text(`${n}.  ${txt}`, MARGIN, this.y);
           this.y += LINE_HEIGHT;
           i++; n++;
