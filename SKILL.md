@@ -171,7 +171,7 @@ Found provider's form?
 
 ### The generic access request form
 
-If the provider's own form can't be found, use the generic fillable PDF at `templates/authorization-form.pdf`. This is a last resort when no provider form exists, or a fallback after coordinate-based filling of a flat provider form has been tried and rejected by the user. It is a proper interactive PDF form with labeled fields that any user could open and fill in a standard PDF reader. It frames the request as an exercise of the HIPAA Right of Access (45 CFR § 164.524). It includes:
+If the provider's own form can't be found, use the generic fillable PDF at `templates/authorization-form.pdf`. This is a last resort when no provider form exists. It is a proper interactive PDF form with labeled fields that any user could open and fill in a standard PDF reader. It frames the request as an exercise of the HIPAA Right of Access (45 CFR § 164.524). It includes:
 - Description of information to be disclosed
 - Who the request is directed to
 - Who the records should be delivered to
@@ -340,10 +340,9 @@ pdftoppm -png -r 150 -singlefile /tmp/provider_form_filled.pdf /tmp/preview
 Review the rendered PDF. The markdown approach typically produces clean results on the first try, but verify the signature placement and overall layout before proceeding.
 
 **When to use markdown transcription:**
-- Coordinate-based filling failed after 1-2 attempts
-- The original form is a poor scan or has complex layout
-- The form has many sections that are hard to overlay accurately
-- You want a guaranteed clean result
+- The provider's form has no fillable fields (0 AcroForm fields)
+- The form is a scanned image or flat PDF
+- You need a clean, reliable result
 
 **What to tell the patient:**
 > "Your provider's form isn't digitally fillable, so I've created a clean version that includes all the same information and sections. It's formatted as a standard authorization form with your details filled in. Providers are required to accept any written request that meets HIPAA requirements."
@@ -493,7 +492,7 @@ Use pdf-lib to merge:
 
 If the provider form was filled via AcroForm fields, `scripts/fill-and-merge.ts` handles both filling and merging in one step (pass `coverLetterPath` in the config).
 
-If the provider form was filled via coordinate-based drawing (or you already have a filled PDF from the user), just write a simple pdf-lib merge script — load each PDF with `PDFDocument.load()`, copy pages with `copyPages()`, and save:
+If you already have a filled PDF (from markdown transcription or the user), write a simple pdf-lib merge script — load each PDF with `PDFDocument.load()`, copy pages with `copyPages()`, and save:
 
 ```typescript
 import { PDFDocument } from "pdf-lib";
@@ -508,11 +507,10 @@ await Bun.write("/tmp/ehi-request-provider.pdf", await merged.save());
 
 Save the final PDF to the working directory with a descriptive name like `ehi-request-[provider].pdf`.
 
-**⚠️ Verify signature placement:** After generating the PDF with a signature:
-1. Use a PDF-to-image tool or your environment's screenshot capability to visually inspect the signature location
-2. Check that the signature appears in the correct position on the correct page (note: `signaturePosition.page` specifies which page, 0-indexed)
-3. Confirm the signature is not overlapping other text or cut off at edges
-4. If placement is wrong, adjust the coordinates in your config and regenerate
+**⚠️ Verify the result:** After generating the PDF:
+1. Use a PDF-to-image tool or your environment's screenshot capability to visually inspect the output
+2. Check that the signature appears in the correct location
+3. Confirm text is not overlapping or cut off
 
 Only proceed once you've verified the PDF looks correct.
 
@@ -568,11 +566,11 @@ Also prepare them for potential pushback:
 - **All scripts require Bun** -- run with `bun <script>.ts`, not `node`
 - **First-time setup**: Run `cd <skill-dir>/scripts && bun install` to install pdf-lib
 - **Service URL**: Scripts for signatures and faxing (`create-signature-session.ts`, `poll-signature.ts`, `send-fax.ts`, `check-fax-status.ts`) read the server URL from `scripts/config.json` (`relayUrl` field). You can also pass a URL as the first argument to override. Note: Use patient-friendly language ("electronic signature", "send the fax") -- avoid technical jargon like "relay server" when communicating with the patient.
-- Use pdf-lib's form field API (not coordinate-based text drawing) wherever possible
+- **Fillable PDFs**: Use pdf-lib's form field API to fill fields, then flatten
+- **Flat/scanned PDFs (no fields)**: Transcribe to markdown with filled values, then convert with `md-to-pdf.ts`. Do NOT attempt coordinate-based text drawing -- it's unreliable and produces poor results
 - The appendix is a static PDF (`templates/appendix.pdf`) with no patient-specific content -- just copy and merge it
 - The generic access request form (`templates/authorization-form.pdf`) is a fillable PDF (16 fields) with these field names: `patientName`, `dob`, `phone`, `patientAddress`, `email`, `providerName`, `providerAddress`, `recipientName`, `recipientAddress`, `recipientEmail`, `ehiExport` (checkbox), `includeDocuments` (checkbox), `additionalDescription`, `signature`, `signatureDate`, `representativeAuth`. The form is generated by `scripts/build-authorization-form.ts` and is a Right of Access request under 45 CFR § 164.524.
-- **When the provider's form has no fillable fields (0 AcroForm fields), do NOT skip to the generic form.** Use pdf-lib with coordinate-based drawing as described in Step 6. Use `pdftohtml -xml` output for coordinate calibration. Only fall back to the generic form after coordinate-based filling has been tried and the user rejects the result
-- No browser engine (Chrome/Chromium) is required -- all PDFs are generated and manipulated with pdf-lib
+- No browser engine (Chrome/Chromium) is required -- all PDFs are generated and manipulated with pdf-lib or jsPDF
 
 ### Script Reference
 
