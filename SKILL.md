@@ -258,10 +258,10 @@ Look at the rendered form image and identify where each value should go. Forms v
 
 Key things to notice in the image:
 - **Where is the blank space?** That's where fill text goes — not on top of labels, sub-labels, or printed text.
-- **Right vs. below.** When you pick a label as an anchor, use the text positions to check whether there's more blank space to the **right** of the label or **below** it. If the label ends well before the next element on the same line (or the page edge), the fill area is to the right. If there's another text element close below, there may not be room underneath. Many forms have labels like "First & Last Name" at the left of a line with a long blank extending rightward — fill to the right, not below.
+- **Find the fill area for each label.** For each label you need to fill, look at the space in all directions — above, to the right, and below. The fill area could be any of these depending on the form layout. Use the image to see where a line, box, or blank area indicates where a human would write, and use the text positions to confirm there's no other text already occupying that space. Compare the size of the available space in each direction — a small gap below a label doesn't mean "fill below" if there's a large blank area or line extending to the right.
 - **Checkboxes** may render as small empty squares in the image. In the text positions output they often appear as unusual or unexpected characters rendered by unmapped font glyphs. Match them by position.
 - **Date fields** with separate segments (e.g., `___/___/___` or `____ / ____ / ____`) — fill each segment individually, not as one string.
-- **Font size in the output helps distinguish roles.** Section headers tend to be larger or bold. Sub-labels (descriptive text at the bottom of form cells) tend to be smaller than the field labels above them. Fill text goes in the blank space above sub-labels, not on them.
+- **Font size in the output helps distinguish roles.** Section headers tend to be larger or bold. Sub-labels (descriptive text at the bottom of form boxes) tend to be smaller than the field labels above them. Fill text goes in the blank space above sub-labels, not on them.
 
 Cross-reference the image with the text positions to get exact coordinates for your `drawText` calls.
 
