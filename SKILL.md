@@ -240,110 +240,51 @@ Always flatten the form after filling so fields render as static text.
 
 When the provider's form has no fillable fields, use coordinate-based `drawText` to place text on the page.
 
-#### Step 1: Extract text positions
+#### Step 1: Extract text positions and render the blank form
 
-Run the text position script to dump every text element with its bounding box:
+Run both of these before writing any fill code:
 ```bash
 bun <skill-dir>/scripts/pdf-text-positions.ts /tmp/provider_form.pdf
-```
-
-This outputs one line per text span with `[left,top,right,bottom]` coordinates in PDF points (top-left origin, 612×792 for letter). For example:
-```
-=== page 1 612×792 ===
-[34,97,101,106] Patient Name:
-[100,96,455,106]  _________________________________________________________
-[456,97,482,106] DOB:
-[485,96,546,106] ___/___/___
-```
-
-Labels, blanks, checkboxes, and boilerplate all appear as text spans with positions. If underscore runs are present, their bounding boxes are useful for positioning — place fill text centered vertically and horizontally within the underscore region. Garbled/replacement characters (e.g. `�`) typically indicate checkboxes.
-
-#### Step 2: Visually inspect the blank form
-
-**Before writing any fill code**, render the blank form to an image and look at it:
-```bash
 pdftoppm -png -r 200 -singlefile /tmp/provider_form.pdf /tmp/provider_form_blank
 ```
 
-This is critical because forms use different layout patterns, and text positions alone don't tell you where the blank space is. You need to see the form to understand its structure.
+The text positions output gives you every text span with `[left,top,right,bottom]` coordinates in PDF points (top-left origin, 612×792 for letter), plus font size and bold/italic style. The image shows you the visual layout — boxes, lines, whitespace, and how elements relate spatially.
 
-**Two common form patterns:**
+**Use both together.** The text positions tell you WHERE things are in coordinate space. The image tells you what the form actually looks like — where the blank spaces are, what's a label vs. a sub-label, where boxes and lines are drawn. Don't try to infer layout from text positions alone.
 
-**Pattern A — Underscore fields:** Labels sit to the left of underscore runs on the same line. Fill text goes on top of/just above the underscores.
+#### Step 2: Reason about placement from the image
+
+Look at the rendered form image and identify where each value should go. Forms vary widely — some use underscores, some use boxed grids with sub-labels, some use simple blank lines, and many mix styles. Rather than following rigid rules, look at where a human would write with a pen and place your text there.
+
+Key things to notice in the image:
+- **Where is the blank space?** That's where fill text goes — not on top of labels, sub-labels, or printed text.
+- **Checkboxes** may render as small empty squares in the image. In the text positions output they often appear as unusual or unexpected characters rendered by unmapped font glyphs. Match them by position.
+- **Date fields** with separate segments (e.g., `___/___/___` or `____ / ____ / ____`) — fill each segment individually, not as one string.
+- **Font size in the output helps distinguish roles.** Section headers tend to be larger or bold. Sub-labels (descriptive text at the bottom of form cells like "Last", "Street", "Zip Code") tend to be smaller than the field labels above them. Fill text goes in the blank space above sub-labels, not on them.
+
+Cross-reference the image with the text positions to get exact coordinates for your `drawText` calls.
+
+#### Step 3: Write the fill script
+
+Use the coordinates from step 1 to place text with `drawText` and checkmarks with `drawLine`.
+
+**Coordinate conversion:** `pdf-text-positions.ts` outputs top-left origin. `drawText` uses bottom-left origin. Convert: `y = pageHeight - topFromScript`.
+
+**Practical tips:**
+- Use Helvetica or Times-Roman at 10-11pt. Go to 9pt only if tight. Never below 8pt.
+- Use dark blue (`rgb(0, 0, 0.6)`) for all filled text and marks — distinguishes entered data from printed form text, like filling in blue ink.
+- For checkboxes, draw an X with two `drawLine` calls. Don't use `drawText('\u2713')` — pdf-lib standard fonts can't encode it.
+- If text is too long for a field, try reducing font size by 1pt. If still too long, truncate rather than overflow.
+- Scanned PDFs may have rotated pages — check `page.getRotation()`.
+
+#### Step 4: Render and verify
+
+Render the filled PDF to an image and visually inspect:
+```bash
+pdftoppm -png -r 200 -singlefile /tmp/provider_form.pdf /tmp/provider_form_filled
 ```
-Patient Name: ___________________________  DOB: ___/___/___
-              ↑ fill here                       ↑ fill here
-```
-The `pdf-text-positions.ts` output directly shows where underscores are. Place fill text at the underscore's position.
 
-**Pattern B — Boxed cells with sub-labels:** The form is a grid of boxes. Each cell has a field label at the top-left and a sub-label at the bottom describing what goes in the space above it. Fill text goes in the blank space BETWEEN the field label and the sub-label — NOT on the sub-label.
-```
-┌─────────────────────────────────────────────────────────┐
-│ Patient Name:                                           │
-│   Smith                  John                           │ ← fill here (middle of cell)
-│   Last                   First                      MI  │ ← sub-labels (do NOT fill here)
-├─────────────────────────────────────────────────────────┤
-│ Address:                                                │
-│   49 Main St                                            │ ← fill here
-│   Street (include Apt#, if applicable)                  │ ← sub-label (do NOT fill here)
-└─────────────────────────────────────────────────────────┘
-```
-In the text positions output, sub-labels like "Last", "First", "MI", "City", "State", "Zip Code", "Street (include Apt#...)" appear below the fill zone. If you draw text at the sub-label's y-position, it will land on top of the sub-label text. Instead, use the sub-label's coordinates to compute a fill position **above** it:
-
-```
-// Sub-label "Last" is at [left, top, right, bottom] in pdf-text-positions output.
-// Place fill text ~12-16pt above the sub-label's top edge.
-const fillY = pageHeight - (subLabelTop - 14);
-```
-
-The exact offset depends on the cell height. Render the blank form and verify that fill text sits in the blank area between the field label and the sub-label — not overlapping either one.
-
-**How to tell which pattern you're looking at:** Inspect the rendered image. If you see horizontal lines with text above them, it's Pattern A (underscores). If you see a grid of boxes with small descriptive text at the bottom of each cell, it's Pattern B (boxed cells). Many forms mix both patterns.
-
-#### Step 3: Map fields and place text
-
-Use the extracted positions to build a field map, then draw text with `drawText`. For checkboxes, place a checkmark centered in the glyph's bounding box.
-
-Remember that `drawText` uses bottom-left origin, so convert Y: `y = pageHeight - top`.
-
-#### Coordinate-based drawing tips
-
-These guidelines help maximize legibility:
-
-**Sizing and font:**
-- Use a standard font (Helvetica or Times-Roman) at 10-11pt for most fields. Go to 9pt only if space is very tight.
-- Never go below 8pt -- it becomes unreadable when printed or faxed.
-- Use a consistent font size across all fields on the form. Mixing sizes looks unprofessional.
-- Use dark blue (`rgb(0, 0, 0.6)`) for filled text and checkmarks. This distinguishes entered data from the form's printed black text, matching the convention of filling forms in blue ink.
-
-**Positioning:**
-- **Pattern A (underscore fields):** Place text **just above** the field's underline, not on it. A baseline offset of ~4pt above the line works well. For fields with a label to the left (e.g., "Patient Name: ___________"), start the text where the underline begins, not where the label ends. Add a small left margin (~4pt) so text doesn't crowd the label.
-- **Pattern B (boxed cells with sub-labels):** Place text **well above** the sub-label text. Sub-labels ("Last", "First", "City", "State", "Zip Code", "Street") sit at the bottom of each cell. Your fill text must go ~12-16pt higher than the sub-label's top coordinate — in the blank space in the middle of the cell. If text overlaps a sub-label, you're too low.
-- For checkboxes, draw an X using two `drawLine` calls centered in the checkbox box. Don't use `drawText('\u2713', ...)` — pdf-lib's standard fonts (WinAnsi encoding) cannot encode the checkmark character.
-- For date fields with separate segments (e.g., `___/___/___`), draw each piece (month, day, year) individually centered in its segment rather than writing the full date as one string.
-
-**Multi-line and wrapping:**
-- If a value is too long for the field width, reduce font size by 1pt and try again. If it still doesn't fit, truncate with ellipsis rather than overflowing into adjacent fields.
-- For address fields, if street + city + state + zip won't fit on one line, look for whether the form has a second address line. If not, use a smaller font before wrapping.
-
-**Common pitfalls:**
-- PDF coordinate systems have origin at bottom-left, not top-left. The `pdf-text-positions.ts` script outputs top-left origin coordinates, but `drawText` uses bottom-up Y. Always convert: `y = pageHeight - top`.
-- Scanned PDFs sometimes have slightly rotated pages. If text looks tilted relative to the form lines, the page may have a non-zero rotation -- check `page.getRotation()` and adjust.
-- Different PDF producers embed fonts differently. Always embed the font explicitly rather than relying on what's in the PDF.
-
-### Pre-render checklist
-
-Before rendering the filled form, verify each item:
-
-- [ ] **Blank form inspected**: You rendered and visually inspected the blank form BEFORE writing fill code — you know whether it uses underscore fields (Pattern A) or boxed cells with sub-labels (Pattern B)
-- [ ] **Sub-label avoidance**: For boxed/cell forms, fill text is positioned ABOVE sub-labels ("Last", "First", "City", "State", "Street", etc.), not on top of them
-- [ ] **Date segments**: Fields like `___/___/___` — each piece (month, day, year) drawn in its own slot, not as one string
-- [ ] **Checkbox marks**: Use `drawLine` X marks, not `drawText('\u2713')` (standard fonts can't encode it)
-- [ ] **Baseline alignment**: `y = pageHeight - bottom + 2` (anchor to bottom of text element, not top)
-- [ ] **Label clearance**: Fill text on shared lines (Name/Phone, Address/City/State/Zip) doesn't overlap the label text
-- [ ] **Font size**: ≥ 8pt minimum, consistent across fields, ≤ 11pt
-- [ ] **Ink color**: Dark blue `rgb(0, 0, 0.6)` to distinguish from printed black text
-- [ ] **Coordinate origin**: `pdf-text-positions.ts` outputs top-left origin; `drawText` uses bottom-left — convert Y
+Check that fill text lands in blank spaces (not on labels/sub-labels), checkmarks land in checkbox squares, and nothing overlaps. If anything is off, adjust coordinates and re-render.
 
 ### Visual review loop
 
