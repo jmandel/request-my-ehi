@@ -363,6 +363,10 @@ export class MdPdf {
             colStarts.push(colStarts[ci] + colWidths[ci]);
           }
           
+          // Draw top border of table
+          this.doc.setDrawColor(200);
+          this.doc.line(MARGIN, this.y, PAGE_WIDTH - MARGIN, this.y);
+          
           for (let ri = 0; ri < rows.length; ri++) {
             const isHeader = ri === 0;
             this.font(isHeader, false, 9);
@@ -378,41 +382,51 @@ export class MdPdf {
               maxLines = Math.max(maxLines, wrapped.length);
             }
             
-            // Row height: padding top + text lines + padding bottom
-            const rowPaddingTop = 8;
-            const rowPaddingBottom = 6;
+            // Row geometry:
+            // - Text ascent is ~70% of font size (9pt font → ~6pt ascent)
+            // - Text descent is ~20% of font size (9pt font → ~2pt descent)
+            // - Need clearance above text top and below text bottom
+            const fontSize = 9;
+            const textAscent = fontSize * 0.7;  // ~6pt above baseline
+            const textDescent = fontSize * 0.2; // ~2pt below baseline
+            const minClearance = 4; // minimum space between line and text
+            
             const textHeight = maxLines * cellLineHeight;
+            // Padding must account for ascent/descent plus clearance
+            const rowPaddingTop = textAscent + minClearance;
+            const rowPaddingBottom = textDescent + minClearance;
             const rowHeight = rowPaddingTop + textHeight + rowPaddingBottom;
             
             this.newPageIfNeeded(rowHeight);
             
-            // Draw header background (before advancing y)
+            // Row starts at this.y, line will be at this.y + rowHeight
+            const rowTop = this.y;
+            
+            // Draw header background
             if (isHeader) {
               this.doc.setFillColor(240, 240, 240);
-              this.doc.rect(MARGIN, this.y, CONTENT_WIDTH, rowHeight, "F");
+              this.doc.rect(MARGIN, rowTop, CONTENT_WIDTH, rowHeight, "F");
             }
             
-            // Advance past top padding, then draw text
-            this.y += rowPaddingTop;
-            const textStartY = this.y;
+            // Text baseline position: rowTop + paddingTop gives us where baseline should be
+            // since paddingTop already accounts for ascent
+            const textBaselineY = rowTop + rowPaddingTop;
             
             for (let ci = 0; ci < Math.min(wrappedCells.length, cols); ci++) {
               const cellX = colStarts[ci] + cellPadding;
-              let cellY = textStartY;
+              let cellY = textBaselineY;
               for (const line of wrappedCells[ci]) {
                 this.doc.text(line, cellX, cellY);
                 cellY += cellLineHeight;
               }
             }
             
-            // Advance past text and bottom padding
-            this.y = textStartY + textHeight + rowPaddingBottom;
-            
-            // Draw row separator at current y position
+            // Move to bottom of row and draw separator
+            this.y = rowTop + rowHeight;
             this.doc.setDrawColor(200);
             this.doc.line(MARGIN, this.y, PAGE_WIDTH - MARGIN, this.y);
           }
-          this.y += 8;
+          this.y += 4; // small gap after table
         }
         continue;
       }
