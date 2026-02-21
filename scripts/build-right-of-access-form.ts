@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 /**
- * Build templates/authorization-form.pdf from LaTeX source.
+ * Build templates/right-of-access-form.pdf from LaTeX source.
  *
- * Usage: bun scripts/build-authorization-form.ts
+ * Usage: bun scripts/build-right-of-access-form.ts
  *
- * Runs pdflatex on templates/authorization-form.tex, validates that all 16
+ * Runs pdflatex on templates/right-of-access-form.tex, validates that all 16
  * expected form fields exist with correct names and types, then copies the
- * result to templates/authorization-form.pdf.
+ * result to templates/right-of-access-form.pdf.
  *
  * Requires (Arch Linux):
  *   sudo pacman -S texlive-basic texlive-bin texlive-latex \
@@ -25,8 +25,8 @@ import { dirname, join } from 'path';
 import { existsSync, mkdirSync, copyFileSync, unlinkSync } from 'fs';
 
 const ROOT = join(dirname(import.meta.path), '..');
-const TEX_SRC = join(ROOT, 'templates', 'authorization-form.tex');
-const OUTPUT = join(ROOT, 'templates', 'authorization-form.pdf');
+const TEX_SRC = join(ROOT, 'templates', 'right-of-access-form.tex');
+const OUTPUT = join(ROOT, 'templates', 'right-of-access-form.pdf');
 const BUILD_DIR = '/tmp/build-auth-form';
 
 // ── Expected fields ─────────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ const proc = Bun.spawnSync([
   TEX_SRC,
 ], { stdout: 'pipe', stderr: 'pipe' });
 
-const builtPdf = join(BUILD_DIR, 'authorization-form.pdf');
+const builtPdf = join(BUILD_DIR, 'right-of-access-form.pdf');
 
 if (!existsSync(builtPdf)) {
   console.error('pdflatex failed to produce output PDF.');
@@ -128,7 +128,7 @@ copyFileSync(builtPdf, OUTPUT);
 
 // ── Clean up aux files ──────────────────────────────────────────────────────
 for (const ext of ['.aux', '.log', '.out', '.pdf']) {
-  const f = join(BUILD_DIR, `authorization-form${ext}`);
+  const f = join(BUILD_DIR, `right-of-access-form${ext}`);
   try { unlinkSync(f); } catch {}
 }
 

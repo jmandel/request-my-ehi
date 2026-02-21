@@ -84,7 +84,7 @@ test('lookup-vendor: shows usage without args', () => {
 console.log('\n--- list-form-fields ---\n');
 
 test('list-form-fields: enumerates access request form fields', () => {
-  const out = run(`bun scripts/list-form-fields.ts ${TEMPLATES}/authorization-form.pdf`);
+  const out = run(`bun scripts/list-form-fields.ts ${TEMPLATES}/right-of-access-form.pdf`);
   if (!out.includes('patientName')) throw new Error('Missing patientName field');
   if (!out.includes('providerName')) throw new Error('Missing providerName field');
   if (!out.includes('PDFTextField')) throw new Error('Missing field types');
@@ -93,7 +93,7 @@ test('list-form-fields: enumerates access request form fields', () => {
 });
 
 test('list-form-fields: reports field positions', () => {
-  const out = run(`bun scripts/list-form-fields.ts ${TEMPLATES}/authorization-form.pdf`);
+  const out = run(`bun scripts/list-form-fields.ts ${TEMPLATES}/right-of-access-form.pdf`);
   if (!out.includes('x=')) throw new Error('Missing x position');
   if (!out.includes('topY=')) throw new Error('Missing y position');
 });
@@ -199,7 +199,7 @@ test('fill-and-merge: creates complete 3-page PDF with cover letter', () => {
 
   // Create config
   const config = {
-    formPath: `${TEMPLATES}/authorization-form.pdf`,
+    formPath: `${TEMPLATES}/right-of-access-form.pdf`,
     appendixPath,
     coverLetterPath,
     outputPath,
@@ -252,7 +252,7 @@ test('fill-and-merge: works without cover letter (2-page fallback)', () => {
   run(`bun scripts/generate-appendix.ts '{"outputPath": "${appendixPath}"}'`);
 
   const config = {
-    formPath: `${TEMPLATES}/authorization-form.pdf`,
+    formPath: `${TEMPLATES}/right-of-access-form.pdf`,
     appendixPath,
     outputPath,
     patient: {
@@ -337,7 +337,7 @@ test('end-to-end: lookup vendor -> generate cover letter + appendix -> fill form
 
   // Step 3: Fill form and merge (3 pages)
   const formConfig = {
-    formPath: `${TEMPLATES}/authorization-form.pdf`,
+    formPath: `${TEMPLATES}/right-of-access-form.pdf`,
     appendixPath,
     coverLetterPath,
     outputPath,
