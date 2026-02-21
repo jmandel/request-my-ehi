@@ -118,6 +118,16 @@ for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     writeFileSync(sigPath, Buffer.from(base64Data, 'base64'));
     console.error(`  Signature saved to ${sigPath}`);
 
+    // Write driver's license PNG if present
+    let driversLicensePath: string | undefined;
+    if (payload.driversLicenseImage) {
+      const dlDataUrl = payload.driversLicenseImage;
+      const dlBase64 = dlDataUrl.replace(/^data:image\/(png|jpeg);base64,/, '');
+      driversLicensePath = join(outputDir, 'drivers-license.png');
+      writeFileSync(driversLicensePath, Buffer.from(dlBase64, 'base64'));
+      console.error(`  Driver's license saved to ${driversLicensePath}`);
+    }
+
     // Write metadata
     const metadata = {
       timestamp: payload.timestamp,
@@ -128,11 +138,15 @@ for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     console.error(`  Metadata saved to ${metaPath}`);
 
     // Output summary to stdout
-    console.log(JSON.stringify({
+    const output: Record<string, string> = {
       signaturePath: sigPath,
       metadataPath: metaPath,
       timestamp: payload.timestamp,
-    }, null, 2));
+    };
+    if (driversLicensePath) {
+      output.driversLicensePath = driversLicensePath;
+    }
+    console.log(JSON.stringify(output, null, 2));
 
     process.exit(0);
   }

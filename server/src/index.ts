@@ -64,7 +64,7 @@ app.get("/skill.zip", async (c) => {
   
   // Add templates/*.pdf
   const templatesDir = path.join(rootDir, "templates");
-  for (const file of ["right-of-access-form.pdf", "appendix.pdf", "cover-letter.pdf"]) {
+  for (const file of ["right-of-access-form.pdf", "appendix.pdf", "cover-letter.pdf", "drivers-license-page.md"]) {
     try {
       const content = await Bun.file(path.join(templatesDir, file)).arrayBuffer();
       files.push({ path: `request-my-ehi/templates/${file}`, content: new Uint8Array(content) });

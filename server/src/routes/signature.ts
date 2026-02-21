@@ -8,7 +8,7 @@ export const signatureRoutes = new Hono();
 // Create a new signature session
 signatureRoutes.post("/sessions", async (c) => {
   const body = await c.req.json();
-  const { publicKey, instructions, signerName, expiryMinutes } = body;
+  const { publicKey, instructions, signerName, expiryMinutes, requestDriversLicense } = body;
 
   if (!publicKey || !instructions) {
     return c.json({ error: "publicKey and instructions are required" }, 400);
@@ -19,6 +19,7 @@ signatureRoutes.post("/sessions", async (c) => {
     instructions,
     signerName,
     expiryMinutes,
+    requestDriversLicense,
   });
 
   return c.json({
@@ -45,6 +46,7 @@ signatureRoutes.get("/sessions/:id/info", (c) => {
     publicKeyJwk: session.publicKeyJwk,
     instructions: session.instructions,
     signerName: session.signerName,
+    requestDriversLicense: session.requestDriversLicense,
   });
 });
 

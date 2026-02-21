@@ -442,7 +442,7 @@ bun <skill-dir>/scripts/create-signature-session.ts \
   --signer-name "Jane Doe" \
   --expiry-minutes 60
 ```
-Optionally pass `--instructions "Custom text"` to override the default instructions shown to the signer. Outputs JSON to stdout:
+Optionally pass `--instructions "Custom text"` to override the default instructions shown to the signer. Add `--request-drivers-license` if the provider requires identity verification (see "Driver's License Upload" below). Outputs JSON to stdout:
 ```json
 {
   "sessionId": "62ee3034-...",
@@ -452,7 +452,7 @@ Optionally pass `--instructions "Custom text"` to override the default instructi
 ```
 Save all three fields.
 
-2. **Present the `signUrl` to the patient** — show them the link and tell them what to expect on the page. The patient cannot sign without this URL, so you must output it before starting the poll.
+2. **Present the `signUrl` to the patient** — show them the link and tell them what to expect on the page. The patient cannot sign without this URL, so you must output it before starting the poll. On desktop, the signing page also shows a QR code so the patient can easily switch to their phone for camera access and a better signature drawing experience.
 
 3. **Poll for completion** (run in background while the patient signs):
 ```bash
@@ -462,15 +462,18 @@ bun <skill-dir>/scripts/poll-signature.ts <session-id> '<private-key-jwk-json>' 
 This blocks until the patient signs (or the session expires). On success it writes:
 - `./signature.png` -- transparent-background PNG of the drawn signature
 - `./signature-metadata.json` -- timestamp, audit log
+- `./drivers-license.png` -- photo of driver's license (only if `--request-drivers-license` was used and the patient uploaded one)
 
 And outputs JSON to stdout:
 ```json
 {
   "signaturePath": "./signature.png",
   "metadataPath": "./signature-metadata.json",
-  "timestamp": "2026-02-18T18:05:00.000Z"
+  "timestamp": "2026-02-18T18:05:00.000Z",
+  "driversLicensePath": "./drivers-license.png"
 }
 ```
+The `driversLicensePath` field is only present if the patient uploaded a driver's license.
 Progress goes to stderr. Exits with code 1 if the session expires.
 
 4. **Embed the signature PNG** directly on the form using `page.drawImage()` — it already has a transparent background, so no ImageMagick processing is needed. See Option B steps 2-4 for positioning guidance.
@@ -486,6 +489,31 @@ Ask the patient if they have a signature image to embed. If they provide one:
 ### Option C: Print and Sign
 
 If they don't have a signature image and live capture isn't available, let them know they'll need to print the final PDF and sign by hand before submitting.
+
+### Driver's License Upload (Optional)
+
+Some providers require a copy of the patient's photo ID with the records request. The electronic signature flow supports an optional driver's license upload — when enabled, the signing page shows a photo upload section alongside the signature canvas.
+
+**When to use it:** If the provider's form mentions "copy of photo ID required" or "attach a valid government-issued ID," add the `--request-drivers-license` flag when creating the signature session. The upload is optional on the patient's end — they can still submit with just a signature.
+
+**When presenting this to the patient:**
+> "This provider asks for a copy of your photo ID. The signing page will also let you take a photo of your driver's license (or upload one). This is optional — you can always provide it separately if you prefer."
+
+**Generating the ID page PDF:**
+
+If `driversLicensePath` is present in the poll output, generate a clean PDF page using the template:
+
+```bash
+# Read the template, replace placeholders, and convert
+cp <skill-dir>/templates/drivers-license-page.md ./dl-page.md
+# Then use sed or your preferred method to replace:
+#   {{PATIENT_NAME}} → patient's full name
+#   {{DOB}} → patient's date of birth
+#   {{IMAGE_PATH}} → ./drivers-license.png
+bun <skill-dir>/scripts/md-to-pdf.ts ./dl-page.md ./drivers-license-page.pdf
+```
+
+The template at `templates/drivers-license-page.md` produces a page with a patient name/DOB header and the driver's license scan image. Merge this page into the final PDF package (typically after the request form, before the appendix).
 
 ## Step 8: Generate the Cover Letter and Appendix
 
@@ -642,7 +670,7 @@ Also prepare them for potential pushback:
 | `generate-cover-letter.ts` | `bun generate-cover-letter.ts ['{"outputPath": "..."}']` |
 | `fill-and-merge.ts` | `bun fill-and-merge.ts <config.json>` |
 | `md-to-pdf.ts` | `bun md-to-pdf.ts <input.md> [output.pdf]` |
-| `create-signature-session.ts` | `bun create-signature-session.ts [--instructions <text>] [--signer-name <name>]` |
+| `create-signature-session.ts` | `bun create-signature-session.ts [--instructions <text>] [--signer-name <name>] [--request-drivers-license]` |
 | `poll-signature.ts` | `bun poll-signature.ts <session-id> '<private-key-jwk>'` |
 | `send-fax.ts` | `bun send-fax.ts <fax-number> <pdf-path>` |
 | `check-fax-status.ts` | `bun check-fax-status.ts <fax-id>` |

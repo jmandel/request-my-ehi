@@ -18,6 +18,7 @@ export interface SignatureSession {
   publicKeyJwk: JsonWebKey;
   instructions: string;
   signerName?: string;
+  requestDriversLicense?: boolean;
   status: "waiting" | "completed" | "expired";
   encryptedPayload?: EncryptedPayload;
   createdAt: number;
@@ -82,6 +83,7 @@ export function createSession(params: {
   publicKeyJwk: JsonWebKey;
   instructions: string;
   signerName?: string;
+  requestDriversLicense?: boolean;
   expiryMinutes?: number;
 }): SignatureSession {
   const id = crypto.randomUUID();
@@ -91,6 +93,7 @@ export function createSession(params: {
     publicKeyJwk: params.publicKeyJwk,
     instructions: params.instructions,
     signerName: params.signerName,
+    requestDriversLicense: params.requestDriversLicense,
     status: "waiting",
     createdAt: Date.now(),
     expiresAt: Date.now() + ttl,

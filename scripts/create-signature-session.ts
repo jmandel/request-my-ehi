@@ -8,6 +8,7 @@
  * Options:
  *   --instructions <text|@file>   Instructions shown to signer (optional, has default)
  *   --signer-name <name>          Pre-fill signer name (optional)
+ *   --request-drivers-license      Show DL upload UI on signing page
  *   --expiry-minutes <n>          Session expiry (default: 60)
  *
  * Output (JSON to stdout):
@@ -32,6 +33,7 @@ if (instructions.startsWith('@')) {
 }
 
 const signerName = getArg('--signer-name');
+const requestDriversLicense = args.includes('--request-drivers-license');
 const expiryMinutes = parseInt(getArg('--expiry-minutes') || '60', 10);
 
 // Generate ECDH P-256 keypair
@@ -53,6 +55,7 @@ const res = await fetch(`${serverUrl}/api/signatures/sessions`, {
     instructions,
     signerName,
     expiryMinutes,
+    requestDriversLicense: requestDriversLicense || undefined,
   }),
 });
 
