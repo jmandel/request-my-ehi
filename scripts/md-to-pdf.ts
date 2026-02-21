@@ -436,11 +436,18 @@ export class MdPdf {
         const src = this.loadImage(imgMatch[2]);
         if (src) {
           try {
+            const alt = imgMatch[1].toLowerCase();
             const props = this.doc.getImageProperties(src);
-            const targetH = 50; // ~0.7 inches (50pt at 72pt/inch)
-            const scale = targetH / props.height;
-            const w = Math.min(props.width * scale, CONTENT_WIDTH);
-            const h = targetH;
+            let w: number, h: number;
+            if (alt === "signature") {
+              // Signatures: fixed 50pt tall, preserve aspect ratio
+              h = 50;
+              w = Math.min(props.width * (h / props.height), CONTENT_WIDTH);
+            } else {
+              // Other images (e.g., DL scans): scale to fit content width
+              w = Math.min(props.width, CONTENT_WIDTH);
+              h = props.height * (w / props.width);
+            }
             this.newPageIfNeeded(h + 10);
             this.doc.addImage(src, MARGIN, this.y, w, h);
             this.y += h + 10;
