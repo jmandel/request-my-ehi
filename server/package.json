@@ -5,6 +5,7 @@
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
-    "hono": "^4"
+    "hono": "^4",
+    "qrcode": "^1.5.4"
   }
 }
