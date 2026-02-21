@@ -443,10 +443,17 @@ export class MdPdf {
               // Signatures: fixed 50pt tall, preserve aspect ratio
               h = 50;
               w = Math.min(props.width * (h / props.height), CONTENT_WIDTH);
+            } else if (alt === "driver's license") {
+              // US driver's license: 3.375" × 2.125" = 243pt × 153pt (landscape)
+              w = 243;
+              h = 153;
             } else {
-              // Other images (e.g., DL scans): scale to fit content width
-              w = Math.min(props.width, CONTENT_WIDTH);
-              h = props.height * (w / props.width);
+              // Other images: scale to fit, capped at 4" wide × 3" tall
+              const maxW = 288;
+              const maxH = 216;
+              const scale = Math.min(maxW / props.width, maxH / props.height, 1);
+              w = props.width * scale;
+              h = props.height * scale;
             }
             this.newPageIfNeeded(h + 10);
             this.doc.addImage(src, MARGIN, this.y, w, h);
