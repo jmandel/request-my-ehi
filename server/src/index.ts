@@ -7,6 +7,14 @@ import { faxRoutes } from "./routes/fax.ts";
 import { isSimulatedMode } from "./fax/index.ts";
 import { getSession } from "./store.ts";
 
+// Build client-side QR code bundle at startup
+const qrBuild = await Bun.build({
+  entrypoints: [new URL("./qr-browser.ts", import.meta.url).pathname],
+  target: "browser",
+  minify: true,
+});
+const qrBundleJs = await qrBuild.outputs[0].text();
+
 const app = new Hono();
 
 app.use("*", cors());
@@ -36,6 +44,14 @@ app.get("/fax-outbox", async (c) => {
   }
   const html = await Bun.file(new URL("../public/fax-outbox.html", import.meta.url).pathname).text();
   return c.html(html);
+});
+
+// Serve client-side QR code bundle
+app.get("/public/qrcode.min.js", (c) => {
+  return c.body(qrBundleJs, 200, {
+    "Content-Type": "application/javascript",
+    "Cache-Control": "public, max-age=86400",
+  });
 });
 
 // Static files fallback

@@ -2,8 +2,7 @@
   "name": "ehi-relay",
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch src/index.ts",
-    "build:qr": "bun build --target=browser --minify --outfile=public/qrcode.min.js src/qr-browser.ts"
+    "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
     "hono": "^4",
