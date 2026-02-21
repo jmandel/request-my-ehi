@@ -168,8 +168,27 @@
   .dl-upload-icon { font-size: 2rem; margin-bottom: 8px; }
   .dl-upload-text { font-size: 0.9rem; color: #666; }
   .dl-upload-text strong { color: #1a3c5e; }
-  .dl-preview { position: relative; display: inline-block; max-width: 100%; }
-  .dl-preview img { max-width: 100%; max-height: 200px; border-radius: 4px; display: block; }
+  .dl-preview { position: relative; max-width: 100%; }
+  .dl-preview img { max-width: 100%; border-radius: 4px; display: block; }
+  .dl-crop-container {
+    position: relative; display: inline-block; max-width: 100%;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .dl-crop-container img { max-width: 100%; display: block; border-radius: 4px; }
+  .dl-crop-overlay {
+    position: absolute; border: 2px dashed rgba(26,60,94,0.6);
+    background: transparent; cursor: move;
+    min-width: 40px; min-height: 25px;
+  }
+  .dl-crop-handle {
+    position: absolute; width: 18px; height: 18px; background: #1a3c5e;
+    border: 2px solid #fff; border-radius: 50%; z-index: 1;
+  }
+  .dl-crop-handle.tl { top: -9px; left: -9px; cursor: nwse-resize; }
+  .dl-crop-handle.tr { top: -9px; right: -9px; cursor: nesw-resize; }
+  .dl-crop-handle.bl { bottom: -9px; left: -9px; cursor: nesw-resize; }
+  .dl-crop-handle.br { bottom: -9px; right: -9px; cursor: nwse-resize; }
+  .dl-crop-hint { font-size: 0.75rem; color: #888; margin-top: 4px; text-align: center; }
   .dl-remove-btn {
     position: absolute; top: 6px; right: 6px;
     background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%;
@@ -235,8 +254,16 @@
         <div class="dl-upload-text"><strong>Tap to take a photo</strong> or upload an image</div>
       </div>
       <div id="dl-preview-wrapper" class="dl-preview hidden">
-        <img id="dl-preview-img" alt="Driver's license preview">
-        <button class="dl-remove-btn" id="dl-remove-btn" title="Remove">✕</button>
+        <div class="dl-crop-container" id="dl-crop-container">
+          <img id="dl-preview-img" alt="Driver's license preview">
+          <div class="dl-crop-overlay" id="dl-crop-overlay">
+            <div class="dl-crop-handle tl" data-handle="tl"></div>
+            <div class="dl-crop-handle tr" data-handle="tr"></div>
+            <div class="dl-crop-handle bl" data-handle="bl"></div>
+            <div class="dl-crop-handle br" data-handle="br"></div>
+          </div>
+        </div>
+        <div class="dl-crop-hint">Drag corners to crop · <a href="#" id="dl-remove-btn" style="color:#c0392b">Remove</a></div>
       </div>
       <input type="file" id="dl-file-input" class="dl-file-input" accept="image/*" capture="environment">
     </div>
@@ -376,23 +403,111 @@
           const c = document.createElement('canvas');
           c.width = w; c.height = h;
           c.getContext('2d').drawImage(img, 0, 0, w, h);
-          resolve(c.toDataURL('image/png'));
+          resolve({ dataUrl: c.toDataURL('image/png'), width: w, height: h });
         };
         img.src = URL.createObjectURL(file);
       });
     }
 
+    // Crop state
+    let dlFullDataUrl = null;
+    let dlNatW = 0, dlNatH = 0;
+    const cropBox = { x: 0, y: 0, w: 0, h: 0 };
+
     dlInput.addEventListener('change', async () => {
       const file = dlInput.files[0];
       if (!file) return;
-      dlDataUrl = await resizeImage(file, 1600);
-      dlPreviewImg.src = dlDataUrl;
+      const { dataUrl, width, height } = await resizeImage(file, 1600);
+      dlFullDataUrl = dataUrl;
+      dlNatW = width;
+      dlNatH = height;
+      dlPreviewImg.src = dataUrl;
       dlUploadArea.classList.add('hidden');
       dlPreviewWrapper.classList.remove('hidden');
+      dlPreviewImg.onload = () => {
+        const r = dlPreviewImg.getBoundingClientRect();
+        const pad = Math.min(r.width, r.height) * 0.05;
+        cropBox.x = pad; cropBox.y = pad;
+        cropBox.w = r.width - pad * 2; cropBox.h = r.height - pad * 2;
+        updateCropOverlay();
+      };
     });
 
-    $('#dl-remove-btn').addEventListener('click', () => {
+    const overlay = $('#dl-crop-overlay');
+    function updateCropOverlay() {
+      overlay.style.left = cropBox.x + 'px';
+      overlay.style.top = cropBox.y + 'px';
+      overlay.style.width = cropBox.w + 'px';
+      overlay.style.height = cropBox.h + 'px';
+    }
+
+    // Drag logic for crop overlay and handles
+    let dragState = null;
+    const container = $('#dl-crop-container');
+
+    function getPointerPos(e) {
+      const r = dlPreviewImg.getBoundingClientRect();
+      const t = e.touches ? e.touches[0] : e;
+      return { x: t.clientX - r.left, y: t.clientY - r.top, maxX: r.width, maxY: r.height };
+    }
+
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+    container.addEventListener('pointerdown', (e) => {
+      const handle = e.target.dataset?.handle;
+      const p = getPointerPos(e);
+      if (handle) {
+        dragState = { type: 'handle', handle, startX: p.x, startY: p.y, orig: { ...cropBox } };
+      } else if (e.target === overlay || overlay.contains(e.target)) {
+        dragState = { type: 'move', startX: p.x, startY: p.y, orig: { ...cropBox } };
+      }
+      if (dragState) { e.preventDefault(); container.setPointerCapture(e.pointerId); }
+    });
+
+    container.addEventListener('pointermove', (e) => {
+      if (!dragState) return;
+      e.preventDefault();
+      const p = getPointerPos(e);
+      const dx = p.x - dragState.startX, dy = p.y - dragState.startY;
+      const o = dragState.orig;
+
+      if (dragState.type === 'move') {
+        cropBox.x = clamp(o.x + dx, 0, p.maxX - o.w);
+        cropBox.y = clamp(o.y + dy, 0, p.maxY - o.h);
+      } else {
+        const h = dragState.handle;
+        let nx = o.x, ny = o.y, nw = o.w, nh = o.h;
+        if (h.includes('l')) { nx = clamp(o.x + dx, 0, o.x + o.w - 40); nw = o.w - (nx - o.x); }
+        if (h.includes('r')) { nw = clamp(o.w + dx, 40, p.maxX - o.x); }
+        if (h.includes('t')) { ny = clamp(o.y + dy, 0, o.y + o.h - 25); nh = o.h - (ny - o.y); }
+        if (h.includes('b')) { nh = clamp(o.h + dy, 25, p.maxY - o.y); }
+        cropBox.x = nx; cropBox.y = ny; cropBox.w = nw; cropBox.h = nh;
+      }
+      updateCropOverlay();
+    });
+
+    container.addEventListener('pointerup', () => { dragState = null; });
+
+    // Apply crop and produce dlDataUrl
+    function applyCrop() {
+      if (!dlFullDataUrl) return;
+      const imgRect = dlPreviewImg.getBoundingClientRect();
+      const scaleX = dlNatW / imgRect.width;
+      const scaleY = dlNatH / imgRect.height;
+      const sx = Math.round(cropBox.x * scaleX), sy = Math.round(cropBox.y * scaleY);
+      const sw = Math.round(cropBox.w * scaleX), sh = Math.round(cropBox.h * scaleY);
+      const c = document.createElement('canvas');
+      c.width = sw; c.height = sh;
+      const img = new Image();
+      img.src = dlFullDataUrl;
+      c.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+      dlDataUrl = c.toDataURL('image/png');
+    }
+
+    $('#dl-remove-btn').addEventListener('click', (e) => {
+      e.preventDefault();
       dlDataUrl = null;
+      dlFullDataUrl = null;
       dlInput.value = '';
       dlPreviewWrapper.classList.add('hidden');
       dlUploadArea.classList.remove('hidden');
@@ -473,6 +588,8 @@
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
       };
+      // Apply DL crop if image was uploaded
+      if (dlFullDataUrl) applyCrop();
       if (dlDataUrl) payloadObj.driversLicenseImage = dlDataUrl;
       const payload = JSON.stringify(payloadObj);
 
