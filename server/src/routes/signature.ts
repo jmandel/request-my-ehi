@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { createSession, getSession } from "../store.ts";
 import { config } from "../config.ts";
 import type { SignatureSession } from "../store.ts";
-import QRCode from "qrcode";
 
 export const signatureRoutes = new Hono();
 
@@ -49,15 +48,6 @@ signatureRoutes.get("/sessions/:id/info", (c) => {
     signerName: session.signerName,
     requestDriversLicense: session.requestDriversLicense,
   });
-});
-
-// Generate QR code SVG for mobile handoff
-signatureRoutes.get("/sessions/:id/qr.svg", async (c) => {
-  const session = getSession(c.req.param("id"));
-  if (!session) return c.text("Not found", 404);
-  const signUrl = `${config.baseUrl}/sign/${session.id}`;
-  const svg = await QRCode.toString(signUrl, { type: "svg", margin: 2, color: { dark: "#1a3c5e" } });
-  return c.body(svg, 200, { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=3600" });
 });
 
 // Long-poll for session completion (agent calls this)

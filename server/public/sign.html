@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Draw Your Signature</title>
+<script src="/public/qrcode.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -179,7 +180,7 @@
   .dl-optional { font-size: 0.75rem; color: #999; font-weight: 400; }
   /* QR desktop-to-mobile bridge */
   .qr-bridge { text-align: center; margin: 20px 0; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
-  .qr-bridge svg { margin: 12px auto; display: block; }
+  .qr-bridge svg { margin: 12px auto; display: block; max-width: 180px; max-height: 180px; }
   .qr-bridge-title { font-size: 0.85rem; font-weight: 600; color: #1a3c5e; margin-bottom: 4px; }
   .qr-bridge-subtitle { font-size: 0.8rem; color: #888; }
   .qr-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: #aaa; font-size: 0.8rem; }
@@ -402,7 +403,9 @@
   const isDesktop = !window.matchMedia('(pointer: coarse)').matches && window.innerWidth > 768;
   if (isDesktop) {
     $('#qr-bridge').classList.remove('hidden');
-    $('#qr-code').innerHTML = `<img src="/api/signatures/sessions/${sessionId}/qr.svg" alt="QR code" width="180" height="180" style="margin:12px auto;display:block">`;
+    QRCode.toString(window.location.href, { type: 'svg', margin: 2, color: { dark: '#1a3c5e' } }, (err, svg) => {
+      if (svg) $('#qr-code').innerHTML = svg;
+    });
     // Poll for session completion from another device
     (async () => {
       while (true) {
