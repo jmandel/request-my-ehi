@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { createFaxJob, getFaxJob, getAllFaxJobs, updateFaxJobStatus } from "../store.ts";
 import { getFaxProvider, simulateStatusChange, isSimulatedMode } from "../fax/index.ts";
 import { config } from "../config.ts";
+import { logger } from "../logger.ts";
 
 export const faxRoutes = new Hono();
 
@@ -50,6 +51,8 @@ faxRoutes.post("/send", async (c) => {
     // Update job with provider info
     (job as any).providerFaxId = result.providerFaxId;
     (job as any).provider = provider.name;
+    
+    logger.faxSent(job.id, provider.name);
     
     return c.json({
       faxId: job.id,
@@ -101,8 +104,6 @@ faxRoutes.get("/status/:id", async (c) => {
 
 // Webhook for Sinch callbacks (multipart/form-data or JSON)
 faxRoutes.post("/webhook", async (c) => {
-  console.log("[Fax Webhook] Received callback");
-  
   let faxData: any;
   const contentType = c.req.header("content-type") || "";
   
@@ -113,16 +114,14 @@ faxRoutes.post("/webhook", async (c) => {
     if (faxJson && typeof faxJson === "string") {
       faxData = JSON.parse(faxJson);
     }
-    console.log("[Fax Webhook] Multipart fax data:", faxData);
   } else {
     // JSON callback
     const body = await c.req.json();
     faxData = body.fax || body;
-    console.log("[Fax Webhook] JSON fax data:", faxData);
   }
   
   if (!faxData?.id) {
-    console.log("[Fax Webhook] No fax ID in callback");
+    logger.faxWebhookReceived(false);
     return c.json({ received: true, processed: false });
   }
 
@@ -140,17 +139,18 @@ faxRoutes.post("/webhook", async (c) => {
       case "FAILURE": status = "failed"; break;
     }
     
-    console.log(`[Fax Webhook] Updating job ${job.id} to ${status}`);
     updateFaxJobStatus(job.id, status, faxData.errorMessage);
+    logger.faxStatusChanged(job.id, status);
     
     if (faxData.numberOfPages) {
       job.pages = faxData.numberOfPages;
     }
     
+    logger.faxWebhookReceived(true, status);
     return c.json({ received: true, processed: true, faxId: job.id });
   }
   
-  console.log(`[Fax Webhook] No matching job for provider fax ${faxData.id}`);
+  logger.faxWebhookReceived(false);
   return c.json({ received: true, processed: false });
 });
 

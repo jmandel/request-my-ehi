@@ -6,6 +6,7 @@ import { signatureRoutes } from "./routes/signature.ts";
 import { faxRoutes } from "./routes/fax.ts";
 import { isSimulatedMode } from "./fax/index.ts";
 import { getSession } from "./store.ts";
+import { logger } from "./logger.ts";
 
 // Build client-side QR code bundle at startup
 const qrBuild = await Bun.build({
@@ -110,6 +111,8 @@ app.get("/skill.zip", async (c) => {
   
   // Use a simple zip implementation
   const zip = await buildZip(files);
+  
+  logger.skillDownload();
   
   return new Response(zip, {
     headers: {

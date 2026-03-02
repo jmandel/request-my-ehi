@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { createSession, getSession } from "../store.ts";
 import { config } from "../config.ts";
+import { logger } from "../logger.ts";
 import type { SignatureSession } from "../store.ts";
 
 export const signatureRoutes = new Hono();
@@ -21,6 +22,8 @@ signatureRoutes.post("/sessions", async (c) => {
     expiryMinutes,
     requestDriversLicense,
   });
+
+  logger.signatureSessionCreated(session.id);
 
   return c.json({
     sessionId: session.id,
@@ -110,6 +113,10 @@ signatureRoutes.post("/sessions/:id/submit", async (c) => {
     ip: c.req.header("x-forwarded-for") || c.req.header("cf-connecting-ip") || undefined,
     userAgent: c.req.header("user-agent") || undefined,
   });
+
+  // Check if payload includes driver's license (without decrypting - just check size heuristic)
+  const hasDriversLicense = ciphertext.length > 50000; // DL images make payload much larger
+  logger.signatureSessionSubmitted(session.id, hasDriversLicense);
 
   // Wake up all long-poll waiters
   for (const resolve of session.waiters) resolve(session);
