@@ -442,7 +442,7 @@ bun <skill-dir>/scripts/create-signature-session.ts \
   --signer-name "Jane Doe" \
   --expiry-minutes 60
 ```
-Optionally pass `--instructions "Custom text"` to override the default instructions shown to the signer. Add `--request-drivers-license` if the provider requires identity verification (see "Driver's License Upload" below). Outputs JSON to stdout:
+Optionally pass `--instructions "Custom text"` to override the default instructions shown to the signer. Outputs JSON to stdout:
 ```json
 {
   "sessionId": "62ee3034-...",
@@ -462,7 +462,7 @@ bun <skill-dir>/scripts/poll-signature.ts <session-id> '<private-key-jwk-json>' 
 This blocks until the patient signs (or the session expires). On success it writes:
 - `./signature.png` -- transparent-background PNG of the drawn signature
 - `./signature-metadata.json` -- timestamp, audit log
-- `./drivers-license.png` -- photo of driver's license (only if `--request-drivers-license` was used and the patient uploaded one)
+- `./drivers-license.png` -- photo of driver's license (if the patient uploaded one)
 
 And outputs JSON to stdout:
 ```json
@@ -492,16 +492,14 @@ If they don't have a signature image and live capture isn't available, let them 
 
 ### Driver's License Upload (Optional)
 
-Some providers require a copy of the patient's photo ID with the records request. The electronic signature flow supports an optional driver's license upload — when enabled, the signing page shows a photo upload section alongside the signature canvas.
-
-**When to use it:** If the provider's form mentions "copy of photo ID required" or "attach a valid government-issued ID," add the `--request-drivers-license` flag when creating the signature session. The upload is optional on the patient's end — they can still submit with just a signature.
+The signing page always includes an optional driver's license upload section. The patient can choose to upload a photo of their ID or skip it.
 
 **When presenting this to the patient:**
-> "This provider asks for a copy of your photo ID. The signing page will also let you take a photo of your driver's license (or upload one). This is optional — you can always provide it separately if you prefer."
+> "The signing page will let you draw your signature. You can also optionally upload a photo of your driver's license — some providers require ID verification, but you can always provide it separately later if you prefer to skip it now."
 
-**Generating the ID page PDF:**
+**Using the driver's license when provided:**
 
-If `driversLicensePath` is present in the poll output, generate a clean PDF page using the template:
+If `driversLicensePath` is present in the poll output, generate a PDF page with the ID image using the template. If `driversLicensePath` is absent, skip this step entirely — do not prompt the patient for it separately.
 
 ```bash
 # Read the template, replace placeholders, and convert
@@ -670,7 +668,7 @@ Also prepare them for potential pushback:
 | `generate-cover-letter.ts` | `bun generate-cover-letter.ts ['{"outputPath": "..."}']` |
 | `fill-and-merge.ts` | `bun fill-and-merge.ts <config.json>` |
 | `md-to-pdf.ts` | `bun md-to-pdf.ts <input.md> [output.pdf]` |
-| `create-signature-session.ts` | `bun create-signature-session.ts [--instructions <text>] [--signer-name <name>] [--request-drivers-license]` |
+| `create-signature-session.ts` | `bun create-signature-session.ts [--instructions <text>] [--signer-name <name>]` |
 | `poll-signature.ts` | `bun poll-signature.ts <session-id> '<private-key-jwk>'` |
 | `send-fax.ts` | `bun send-fax.ts <fax-number> <pdf-path>` |
 | `check-fax-status.ts` | `bun check-fax-status.ts <fax-id>` |
