@@ -122,6 +122,7 @@
     });
     const weekSigs = stats.thisWeek.map(d => d.counts.signature_session_submitted || 0);
     const weekFaxes = stats.thisWeek.map(d => d.counts.fax_sent || 0);
+    const weekDownloads = stats.thisWeek.map(d => d.counts.skill_download || 0);
 
     new Chart(document.getElementById('weekChart'), {
       type: 'bar',
@@ -130,6 +131,7 @@
         datasets: [
           { label: 'Signatures', data: weekSigs, backgroundColor: '#1a3c5e' },
           { label: 'Faxes', data: weekFaxes, backgroundColor: '#4a90c2' },
+          { label: 'Downloads', data: weekDownloads, backgroundColor: '#27ae60' },
         ]
       },
       options: {
@@ -147,6 +149,7 @@
     });
     const monthSigs = stats.thisMonth.map(d => d.counts.signature_session_submitted || 0);
     const monthFaxes = stats.thisMonth.map(d => d.counts.fax_sent || 0);
+    const monthDownloads = stats.thisMonth.map(d => d.counts.skill_download || 0);
 
     new Chart(document.getElementById('monthChart'), {
       type: 'line',
@@ -155,6 +158,7 @@
         datasets: [
           { label: 'Signatures', data: monthSigs, borderColor: '#1a3c5e', backgroundColor: 'rgba(26,60,94,0.1)', fill: true, tension: 0.3 },
           { label: 'Faxes', data: monthFaxes, borderColor: '#4a90c2', backgroundColor: 'rgba(74,144,194,0.1)', fill: true, tension: 0.3 },
+          { label: 'Downloads', data: monthDownloads, borderColor: '#27ae60', backgroundColor: 'rgba(39,174,96,0.1)', fill: true, tension: 0.3 },
         ]
       },
       options: {
