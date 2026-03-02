@@ -1,0 +1,19 @@
+[Unit]
+Description=EHI Relay Server (API + static site)
+After=network.target
+
+[Service]
+Type=simple
+# Update these paths for your deployment:
+User=YOUR_USER
+WorkingDirectory=/path/to/request-my-ehi/server
+EnvironmentFile=/path/to/request-my-ehi/server/.env
+ExecStart=/path/to/bun run src/index.ts
+Restart=on-failure
+RestartSec=5
+
+# Data directory for SQLite database (server/data/events.db)
+# is created automatically. Ensure User has write access.
+
+[Install]
+WantedBy=multi-user.target

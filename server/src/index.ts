@@ -4,6 +4,7 @@ import { serveStatic } from "hono/bun";
 import { config } from "./config.ts";
 import { signatureRoutes } from "./routes/signature.ts";
 import { faxRoutes } from "./routes/fax.ts";
+import { dashboardRoutes } from "./routes/dashboard.ts";
 import { isSimulatedMode } from "./fax/index.ts";
 import { getSession } from "./store.ts";
 import { logger } from "./logger.ts";
@@ -26,6 +27,7 @@ app.get("/health", (c) => c.json({ status: "ok", timestamp: new Date().toISOStri
 // API routes
 app.route("/api/signatures", signatureRoutes);
 app.route("/api/fax", faxRoutes);
+app.route("/api/dashboard", dashboardRoutes);
 
 // Serve sign.html for /sign/:sessionId
 app.get("/sign/:sessionId", async (c) => {
@@ -44,6 +46,12 @@ app.get("/fax-outbox", async (c) => {
     return c.text("Fax outbox is only available in simulated mode", 404);
   }
   const html = await Bun.file(new URL("../public/fax-outbox.html", import.meta.url).pathname).text();
+  return c.html(html);
+});
+
+// Public dashboard
+app.get("/dashboard", async (c) => {
+  const html = await Bun.file(new URL("../public/dashboard.html", import.meta.url).pathname).text();
   return c.html(html);
 });
 

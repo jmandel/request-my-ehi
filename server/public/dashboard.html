@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EHI Request Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f5f7fa;
+    color: #1a1a2e;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .container { max-width: 1000px; margin: 0 auto; }
+  h1 { color: #1a3c5e; margin-bottom: 8px; }
+  .subtitle { color: #666; margin-bottom: 24px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    text-align: center;
+  }
+  .card-value { font-size: 2rem; font-weight: 700; color: #1a3c5e; }
+  .card-label { font-size: 0.85rem; color: #666; margin-top: 4px; }
+  .card.highlight { background: linear-gradient(135deg, #1a3c5e 0%, #2d5a87 100%); color: #fff; }
+  .card.highlight .card-value { color: #fff; }
+  .card.highlight .card-label { color: rgba(255,255,255,0.8); }
+  .chart-section {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    margin-bottom: 24px;
+  }
+  .chart-title { font-size: 1rem; font-weight: 600; color: #1a3c5e; margin-bottom: 16px; }
+  .chart-container { position: relative; height: 200px; }
+  .loading { text-align: center; padding: 48px; color: #666; }
+  .privacy-note { font-size: 0.8rem; color: #888; text-align: center; margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📋 EHI Request Dashboard</h1>
+  <p class="subtitle">Anonymous usage statistics for the EHI Export request skill</p>
+
+  <div id="loading" class="loading">Loading stats...</div>
+
+  <div id="content" style="display:none;">
+    <div class="cards">
+      <div class="card highlight">
+        <div class="card-value" id="total-signatures">-</div>
+        <div class="card-label">Signatures</div>
+      </div>
+      <div class="card highlight">
+        <div class="card-value" id="total-faxes">-</div>
+        <div class="card-label">Faxes Sent</div>
+      </div>
+      <div class="card">
+        <div class="card-value" id="total-delivered">-</div>
+        <div class="card-label">Delivered</div>
+      </div>
+      <div class="card">
+        <div class="card-value" id="total-downloads">-</div>
+        <div class="card-label">Skill Downloads</div>
+      </div>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-value" id="today-signatures">-</div>
+        <div class="card-label">Signatures Today</div>
+      </div>
+      <div class="card">
+        <div class="card-value" id="today-faxes">-</div>
+        <div class="card-label">Faxes Today</div>
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <div class="chart-title">Last 7 Days</div>
+      <div class="chart-container">
+        <canvas id="weekChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <div class="chart-title">Last 30 Days</div>
+      <div class="chart-container">
+        <canvas id="monthChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <p class="privacy-note">🔒 This dashboard shows only aggregate counts. No personal information is collected or displayed.</p>
+</div>
+
+<script>
+(async () => {
+  try {
+    const res = await fetch('/api/dashboard/stats');
+    const stats = await res.json();
+
+    // Totals
+    document.getElementById('total-signatures').textContent = stats.totals.signature_session_submitted || 0;
+    document.getElementById('total-faxes').textContent = stats.totals.fax_sent || 0;
+    document.getElementById('total-delivered').textContent = stats.totals.fax_delivered || 0;
+    document.getElementById('total-downloads').textContent = stats.totals.skill_download || 0;
+
+    // Today
+    document.getElementById('today-signatures').textContent = stats.today.signature_session_submitted || 0;
+    document.getElementById('today-faxes').textContent = stats.today.fax_sent || 0;
+
+    // Week chart
+    const weekLabels = stats.thisWeek.map(d => {
+      const date = new Date(d.date + 'T12:00:00');
+      return date.toLocaleDateString('en-US', { weekday: 'short' });
+    });
+    const weekSigs = stats.thisWeek.map(d => d.counts.signature_session_submitted || 0);
+    const weekFaxes = stats.thisWeek.map(d => d.counts.fax_sent || 0);
+
+    new Chart(document.getElementById('weekChart'), {
+      type: 'bar',
+      data: {
+        labels: weekLabels,
+        datasets: [
+          { label: 'Signatures', data: weekSigs, backgroundColor: '#1a3c5e' },
+          { label: 'Faxes', data: weekFaxes, backgroundColor: '#4a90c2' },
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+
+    // Month chart
+    const monthLabels = stats.thisMonth.map(d => {
+      const date = new Date(d.date + 'T12:00:00');
+      return date.getDate();
+    });
+    const monthSigs = stats.thisMonth.map(d => d.counts.signature_session_submitted || 0);
+    const monthFaxes = stats.thisMonth.map(d => d.counts.fax_sent || 0);
+
+    new Chart(document.getElementById('monthChart'), {
+      type: 'line',
+      data: {
+        labels: monthLabels,
+        datasets: [
+          { label: 'Signatures', data: monthSigs, borderColor: '#1a3c5e', backgroundColor: 'rgba(26,60,94,0.1)', fill: true, tension: 0.3 },
+          { label: 'Faxes', data: monthFaxes, borderColor: '#4a90c2', backgroundColor: 'rgba(74,144,194,0.1)', fill: true, tension: 0.3 },
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+  } catch (e) {
+    document.getElementById('loading').textContent = 'Failed to load stats.';
+  }
+})();
+</script>
+</body>
+</html>

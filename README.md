@@ -87,6 +87,9 @@ request-my-ehi/
 ├── server/                               # Relay server (deployed separately)
 │   ├── src/                              # Bun + Hono server source
 │   ├── public/                           # sign.html (signature capture UI)
+│   ├── data/                             # SQLite database (created automatically)
+│   │   └── events.db                     # Event log for dashboard stats
+│   ├── ehi-relay.service.sample          # systemd service file template
 │   ├── Dockerfile
 │   └── package.json
 └── templates/
@@ -102,12 +105,42 @@ The `server/` directory contains an optional relay server (Bun + Hono) that prov
 
 - **E2EE Signature Capture** -- patient draws their signature on a mobile-friendly web page; encrypted in-browser with ECDH P-256 + AES-256-GCM before reaching the server
 - **Fax API** -- send faxes via configured provider (Sinch) and check delivery status
+- **Public Dashboard** -- anonymous usage statistics at `/dashboard`
 
 The relay scripts (`create-signature-session`, `poll-signature`, `send-fax`, `check-fax-status`) read the server URL from `scripts/config.json`. Set `relayUrl` there after deploying.
 
+### Development
+
 ```bash
-cd server && bun install && bun run dev  # localhost:3000
+cd server && bun install && bun run dev  # localhost:8000
 ```
+
+### Production Deployment
+
+The server stores event data in SQLite at `server/data/events.db`. This file is created automatically on first run.
+
+```bash
+# 1. Create .env file with required secrets
+cat > server/.env << 'EOF'
+BASE_URL=https://your-domain.com
+SINCH_PROJECT_ID=your-project-id
+SINCH_KEY_ID=your-key-id
+SINCH_KEY_SECRET=your-key-secret
+SINCH_SERVICE_ID=your-service-id
+EOF
+
+# 2. Install systemd service
+sudo cp server/ehi-relay.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable ehi-relay
+sudo systemctl start ehi-relay
+
+# 3. Check status
+sudo systemctl status ehi-relay
+journalctl -u ehi-relay -f
+```
+
+The service runs as the current user from the `server/` directory. Logs go to journald and include JSON-formatted events for monitoring.
 
 ## Legal Context
 
