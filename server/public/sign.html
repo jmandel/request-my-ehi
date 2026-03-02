@@ -168,26 +168,34 @@
   .dl-upload-icon { font-size: 2rem; margin-bottom: 8px; }
   .dl-upload-text { font-size: 0.9rem; color: #666; }
   .dl-upload-text strong { color: #1a3c5e; }
+  .dl-btn {
+    width: 100%; padding: 16px 12px; border: 2px solid #e2e8f0; border-radius: 8px;
+    background: #fff; font-size: 0.95rem; cursor: pointer; transition: border-color 0.2s, background 0.2s;
+  }
+  .dl-btn:hover { border-color: #1a3c5e; background: #f8fafc; }
   .dl-preview { position: relative; max-width: 100%; }
   .dl-preview img { max-width: 100%; border-radius: 4px; display: block; }
   .dl-crop-container {
     position: relative; display: inline-block; max-width: 100%;
     touch-action: none; user-select: none; -webkit-user-select: none;
+    /* Add padding so crop handles at edges stay visible */
+    padding: 12px;
+    margin: -12px;
   }
-  .dl-crop-container img { max-width: 100%; display: block; border-radius: 4px; }
+  .dl-crop-container img { max-width: 100%; max-height: 50vh; display: block; border-radius: 4px; }
   .dl-crop-overlay {
     position: absolute; border: 2px dashed rgba(26,60,94,0.6);
     background: transparent; cursor: move;
     min-width: 40px; min-height: 25px;
   }
   .dl-crop-handle {
-    position: absolute; width: 18px; height: 18px; background: #1a3c5e;
+    position: absolute; width: 24px; height: 24px; background: #1a3c5e;
     border: 2px solid #fff; border-radius: 50%; z-index: 1;
   }
-  .dl-crop-handle.tl { top: -9px; left: -9px; cursor: nwse-resize; }
-  .dl-crop-handle.tr { top: -9px; right: -9px; cursor: nesw-resize; }
-  .dl-crop-handle.bl { bottom: -9px; left: -9px; cursor: nesw-resize; }
-  .dl-crop-handle.br { bottom: -9px; right: -9px; cursor: nwse-resize; }
+  .dl-crop-handle.tl { top: -12px; left: -12px; cursor: nwse-resize; }
+  .dl-crop-handle.tr { top: -12px; right: -12px; cursor: nesw-resize; }
+  .dl-crop-handle.bl { bottom: -12px; left: -12px; cursor: nesw-resize; }
+  .dl-crop-handle.br { bottom: -12px; right: -12px; cursor: nwse-resize; }
   .dl-crop-hint { font-size: 0.75rem; color: #888; margin-top: 4px; text-align: center; }
   .dl-remove-btn {
     position: absolute; top: 6px; right: 6px;
@@ -249,10 +257,7 @@
     <!-- Driver's license upload (shown conditionally) -->
     <div id="dl-section" class="section dl-section hidden">
       <div class="section-label">Driver's License <span class="dl-optional">(Optional)</span></div>
-      <div id="dl-upload-area" class="dl-upload-area">
-        <div class="dl-upload-icon">📷</div>
-        <div class="dl-upload-text"><strong>Tap to take a photo</strong> or upload an image</div>
-      </div>
+      <button type="button" id="dl-upload-btn" class="dl-btn">📷 Choose or Capture</button>
       <div id="dl-preview-wrapper" class="dl-preview hidden">
         <div class="dl-crop-container" id="dl-crop-container">
           <img id="dl-preview-img" alt="Driver's license preview">
@@ -265,7 +270,7 @@
         </div>
         <div class="dl-crop-hint">Drag corners to crop · <a href="#" id="dl-remove-btn" style="color:#c0392b">Remove</a></div>
       </div>
-      <input type="file" id="dl-file-input" class="dl-file-input" accept="image/*" capture="environment">
+      <input type="file" id="dl-file-input" class="dl-file-input">
     </div>
 
     <!-- QR code bridge for desktop users -->
@@ -393,12 +398,12 @@
 
   {
     $('#dl-section').classList.remove('hidden');
-    const dlInput = $('#dl-file-input');
-    const dlUploadArea = $('#dl-upload-area');
+    const dlFileInput = $('#dl-file-input');
+    const dlUploadBtn = $('#dl-upload-btn');
     const dlPreviewWrapper = $('#dl-preview-wrapper');
     const dlPreviewImg = $('#dl-preview-img');
 
-    dlUploadArea.addEventListener('click', () => dlInput.click());
+    dlUploadBtn.addEventListener('click', () => dlFileInput.click());
 
     function resizeImage(file, maxWidth) {
       return new Promise((resolve) => {
@@ -415,15 +420,15 @@
       });
     }
 
-    dlInput.addEventListener('change', async () => {
-      const file = dlInput.files[0];
+    async function handleFileSelect(input) {
+      const file = input.files[0];
       if (!file) return;
       const { dataUrl, width, height } = await resizeImage(file, 1600);
       dlFullDataUrl = dataUrl;
       dlNatW = width;
       dlNatH = height;
       dlPreviewImg.src = dataUrl;
-      dlUploadArea.classList.add('hidden');
+      dlUploadBtn.classList.add('hidden');
       dlPreviewWrapper.classList.remove('hidden');
       dlPreviewImg.onload = () => {
         const r = dlPreviewImg.getBoundingClientRect();
@@ -432,7 +437,9 @@
         cropBox.w = r.width - pad * 2; cropBox.h = r.height - pad * 2;
         updateCropOverlay();
       };
-    });
+    }
+
+    dlFileInput.addEventListener('change', () => handleFileSelect(dlFileInput));
 
     const overlay = $('#dl-crop-overlay');
     function updateCropOverlay() {
@@ -510,9 +517,9 @@
       e.preventDefault();
       dlDataUrl = null;
       dlFullDataUrl = null;
-      dlInput.value = '';
+      dlFileInput.value = '';
       dlPreviewWrapper.classList.add('hidden');
-      dlUploadArea.classList.remove('hidden');
+      dlUploadBtn.classList.remove('hidden');
     });
   }
 
