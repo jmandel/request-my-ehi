@@ -385,6 +385,12 @@
   });
 
   // --- Driver's license upload (always available, optional) ---
+  // Crop state (declared at module level for access in submit handler)
+  let dlFullDataUrl = null;
+  let dlNatW = 0, dlNatH = 0;
+  const cropBox = { x: 0, y: 0, w: 0, h: 0 };
+  let applyCrop = () => {}; // will be assigned below
+
   {
     $('#dl-section').classList.remove('hidden');
     const dlInput = $('#dl-file-input');
@@ -408,11 +414,6 @@
         img.src = URL.createObjectURL(file);
       });
     }
-
-    // Crop state
-    let dlFullDataUrl = null;
-    let dlNatW = 0, dlNatH = 0;
-    const cropBox = { x: 0, y: 0, w: 0, h: 0 };
 
     dlInput.addEventListener('change', async () => {
       const file = dlInput.files[0];
@@ -489,7 +490,8 @@
     container.addEventListener('pointerup', () => { dragState = null; });
 
     // Apply crop and produce dlDataUrl
-    function applyCrop() {
+    // Assign to outer-scope applyCrop so submit handler can call it
+    applyCrop = () => {
       if (!dlFullDataUrl) return;
       const imgRect = dlPreviewImg.getBoundingClientRect();
       const scaleX = dlNatW / imgRect.width;
