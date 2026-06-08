@@ -42,6 +42,23 @@
     margin-top: 0.5rem;
     color: #2c4a62;
     word-break: break-word;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .copy-box:hover { border-color: var(--blue); }
+  .copy-box.copied {
+    background: #eef8f0;
+    border-color: #8bcf9b;
+  }
+  .copy-hint {
+    display: block;
+    margin-top: 0.4rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  .copy-box.copied .copy-hint {
+    color: #247a35;
+    font-weight: 600;
   }
   .copy-button {
     border: 0;
@@ -108,8 +125,11 @@
       <li>Select the downloaded <code>request-my-ehi.zip</code>.</li>
       <li>Start a new Claude chat and paste this:</li>
     </ol>
-    <div class="copy-box" data-copy-text="/request-my-ehi">/request-my-ehi</div>
-    <button class="copy-button" onclick="copyText(this, '/request-my-ehi')">Copy chat prompt</button>
+    <div id="prompt-claude" class="copy-box" data-prompt="claude" onclick="copyPrompt(this)" onkeydown="copyPromptFromKey(event, this)" role="button" tabindex="0">
+      <span class="prompt-text"></span>
+      <span class="copy-hint">Click to copy</span>
+    </div>
+    <button class="copy-button" onclick="copyPrompt(document.getElementById('prompt-claude'), this)">Copy chat prompt</button>
   </section>
 
   <section class="setup-card">
@@ -119,17 +139,19 @@
       <li><a href="skill.zip" download="request-my-ehi.zip">Download request-my-ehi.zip</a>.</li>
       <li>After the download finishes, paste this into your CLI agent:</li>
     </ol>
-    <div class="copy-box" data-copy-text="I downloaded request-my-ehi.zip to my Downloads folder. Install or use that skill, then help me prepare an EHI Export request for my provider.">
-      I downloaded request-my-ehi.zip to my Downloads folder. Install or use that skill, then help me prepare an EHI Export request for my provider.
+    <div id="prompt-cli" class="copy-box" data-prompt="cli" onclick="copyPrompt(this)" onkeydown="copyPromptFromKey(event, this)" role="button" tabindex="0">
+      <span class="prompt-text"></span>
+      <span class="copy-hint">Click to copy</span>
     </div>
-    <button class="copy-button" onclick="copyText(this, 'I downloaded request-my-ehi.zip to my Downloads folder. Install or use that skill, then help me prepare an EHI Export request for my provider.')">Copy CLI prompt</button>
+    <button class="copy-button" onclick="copyPrompt(document.getElementById('prompt-cli'), this)">Copy CLI prompt</button>
 
     <details>
       <summary>Direct-download prompt for agents with web access</summary>
-      <div class="copy-box" data-copy-text="Download the request-my-ehi skill from https://request-my-ehi.joshuamandel.com/skill.zip, install or use it, then help me prepare an EHI Export request for my provider.">
-        Download the request-my-ehi skill from https://request-my-ehi.joshuamandel.com/skill.zip, install or use it, then help me prepare an EHI Export request for my provider.
+      <div id="prompt-direct" class="copy-box" data-prompt="direct" onclick="copyPrompt(this)" onkeydown="copyPromptFromKey(event, this)" role="button" tabindex="0">
+        <span class="prompt-text"></span>
+        <span class="copy-hint">Click to copy</span>
       </div>
-      <button class="copy-button" onclick="copyText(this, 'Download the request-my-ehi skill from https://request-my-ehi.joshuamandel.com/skill.zip, install or use it, then help me prepare an EHI Export request for my provider.')">Copy direct-download prompt</button>
+      <button class="copy-button" onclick="copyPrompt(document.getElementById('prompt-direct'), this)">Copy direct-download prompt</button>
     </details>
   </section>
 </div>
@@ -185,14 +207,39 @@
 </footer>
 
 <script>
-function copyText(button, text) {
+const skillUrl = `${window.location.origin}/skill.zip`;
+const promptText = {
+  claude: '/request-my-ehi',
+  cli: 'I downloaded request-my-ehi.zip to my Downloads folder. Install or use that skill, then help me prepare an EHI Export request for my provider.',
+  direct: `Download the request-my-ehi skill from ${skillUrl}, install or use it, then help me prepare an EHI Export request for my provider.`,
+};
+
+for (const box of document.querySelectorAll('.copy-box[data-prompt]')) {
+  const text = promptText[box.dataset.prompt];
+  box.querySelector('.prompt-text').textContent = text;
+}
+
+function copyPrompt(box, button) {
+  const text = promptText[box.dataset.prompt];
   navigator.clipboard.writeText(text).then(() => {
-    const original = button.textContent;
-    button.textContent = 'Copied';
+    const hint = box.querySelector('.copy-hint');
+    const originalHint = hint.textContent;
+    const originalButton = button?.textContent;
+    box.classList.add('copied');
+    hint.textContent = 'Copied';
+    if (button) button.textContent = 'Copied';
     setTimeout(() => {
-      button.textContent = original;
+      box.classList.remove('copied');
+      hint.textContent = originalHint;
+      if (button) button.textContent = originalButton;
     }, 2000);
   });
+}
+
+function copyPromptFromKey(event, box) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  copyPrompt(box);
 }
 </script>
 

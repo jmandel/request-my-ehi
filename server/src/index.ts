@@ -107,8 +107,10 @@ app.get("/skill.zip", async (c) => {
   }
   for (const file of ["package.json", "config.json", "bun.lock"]) {
     try {
-      const content = await Bun.file(path.join(scriptsDir, file)).arrayBuffer();
-      files.push({ path: `request-my-ehi/scripts/${file}`, content: new Uint8Array(content) });
+      const content = file === "config.json"
+        ? new TextEncoder().encode(`${JSON.stringify({ relayUrl: config.baseUrl }, null, 2)}\n`)
+        : new Uint8Array(await Bun.file(path.join(scriptsDir, file)).arrayBuffer());
+      files.push({ path: `request-my-ehi/scripts/${file}`, content });
     } catch (e) {
       // Skip missing files
     }
