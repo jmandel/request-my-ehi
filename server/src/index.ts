@@ -125,7 +125,7 @@ app.get("/skill.zip", async (c) => {
   return new Response(zip, {
     headers: {
       "Content-Type": "application/zip",
-      "Content-Disposition": "attachment; filename=skill.zip",
+      "Content-Disposition": "attachment; filename=request-my-ehi.zip",
     },
   });
 });

@@ -24,58 +24,42 @@
   pre { background: var(--light); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; overflow-x: auto; margin: 0.75rem 0; }
   pre code { background: none; padding: 0; }
 
-  /* Copy widget */
-  .prompt-widget {
-    background: linear-gradient(135deg, #e8eef5 0%, #dce4ed 100%);
-    border-radius: 12px;
-    padding: 1.5rem 2rem;
-    margin: 1.5rem 0;
-    position: relative;
-    cursor: pointer;
-    transition: transform 0.1s, box-shadow 0.2s;
-    border: 1px solid #c5d1de;
+  .setup-options { display: grid; gap: 1rem; margin: 1rem 0; }
+  .setup-card {
+    background: var(--light);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
   }
-  .prompt-widget:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(26, 60, 94, 0.15);
-  }
-  .prompt-widget:active {
-    transform: translateY(0);
-  }
-  .prompt-widget::before,
-  .prompt-widget::after {
-    content: '"';
-    font-size: 3rem;
-    color: #9eb3c8;
-    position: absolute;
-    font-family: Georgia, serif;
-    line-height: 1;
-  }
-  .prompt-widget::before { top: 0.5rem; left: 0.75rem; }
-  .prompt-widget::after { bottom: 0.25rem; right: 0.75rem; }
-  .prompt-widget p {
-    font-size: 1.05rem;
+  .setup-card h3 { margin-top: 0; color: var(--blue); }
+  .setup-card ol { margin: 0.75rem 0 0; }
+  .setup-card li { margin-bottom: 0.5rem; }
+  .copy-box {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
     color: #2c4a62;
-    margin: 0;
-    padding: 0 1.5rem;
-    text-align: center;
+    word-break: break-word;
   }
-  .prompt-widget .url {
+  .copy-button {
+    border: 0;
+    background: transparent;
     color: var(--blue);
-    word-break: break-all;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+    padding: 0.4rem 0 0;
   }
-  .prompt-widget .copy-hint {
-    display: block;
-    text-align: center;
-    font-size: 0.8rem;
-    color: #6b8299;
+  details {
     margin-top: 0.75rem;
+    color: var(--muted);
   }
-  .prompt-widget.copied {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-    border-color: #a3d9a5;
+  summary {
+    cursor: pointer;
+    color: var(--blue);
   }
-  .prompt-widget.copied .copy-hint { color: #28a745; font-weight: 600; }
 
   /* Getting started section */
   .getting-started { background: var(--light); border-radius: 8px; padding: 1.5rem; margin: 1rem 0; border: 1px solid var(--border); }
@@ -111,12 +95,44 @@
 <h2>Quick Start</h2>
 <p>This skill identifies your provider's EHR system, finds the right authorization form, fills it out with your details and signature, and generates a vendor-specific appendix explaining the legal basis for your request and how it can be satisfied based on the vendor's published documentation. The result is a ready-to-submit PDF package.</p>
 
-<div class="prompt-widget" onclick="copyPrompt(this)">
-  <p>Please use <span class="url">https://request-my-ehi.joshuamandel.com/skill.zip</span> to help me fax an EHI Export request to my provider. Read the SKILL.md in full.</p>
-  <span class="copy-hint">Click anywhere to copy</span>
-</div>
+<h2 id="setup">Get the skill</h2>
 
-<p style="text-align: center; margin-top: 0.5rem;"><a href="#setup">See setup instructions ↓</a></p>
+<div class="setup-options">
+  <section class="setup-card">
+    <h3>Claude.ai web app</h3>
+    <p>Download the skill zip, upload it in Claude.ai, then start a chat with the slash command.</p>
+    <ol>
+      <li><a href="skill.zip" download="request-my-ehi.zip">Download request-my-ehi.zip</a>.</li>
+      <li>Open <a href="https://claude.ai/customize/skills" target="_blank">Claude Skills</a>.</li>
+      <li>Click the plus button and choose <strong>Upload a skill</strong>.</li>
+      <li>Select the downloaded <code>request-my-ehi.zip</code>.</li>
+      <li>Start a new Claude chat and paste this:</li>
+    </ol>
+    <div class="copy-box" data-copy-text="/request-my-ehi">/request-my-ehi</div>
+    <button class="copy-button" onclick="copyText(this, '/request-my-ehi')">Copy chat prompt</button>
+  </section>
+
+  <section class="setup-card">
+    <h3>CLI agents</h3>
+    <p>Use this for Claude Code, Codex CLI, or another local terminal agent.</p>
+    <ol>
+      <li><a href="skill.zip" download="request-my-ehi.zip">Download request-my-ehi.zip</a>.</li>
+      <li>After the download finishes, paste this into your CLI agent:</li>
+    </ol>
+    <div class="copy-box" data-copy-text="I downloaded request-my-ehi.zip to my Downloads folder. Install or use that skill, then help me prepare an EHI Export request for my provider.">
+      I downloaded request-my-ehi.zip to my Downloads folder. Install or use that skill, then help me prepare an EHI Export request for my provider.
+    </div>
+    <button class="copy-button" onclick="copyText(this, 'I downloaded request-my-ehi.zip to my Downloads folder. Install or use that skill, then help me prepare an EHI Export request for my provider.')">Copy CLI prompt</button>
+
+    <details>
+      <summary>Direct-download prompt for agents with web access</summary>
+      <div class="copy-box" data-copy-text="Download the request-my-ehi skill from https://request-my-ehi.joshuamandel.com/skill.zip, install or use it, then help me prepare an EHI Export request for my provider.">
+        Download the request-my-ehi skill from https://request-my-ehi.joshuamandel.com/skill.zip, install or use it, then help me prepare an EHI Export request for my provider.
+      </div>
+      <button class="copy-button" onclick="copyText(this, 'Download the request-my-ehi skill from https://request-my-ehi.joshuamandel.com/skill.zip, install or use it, then help me prepare an EHI Export request for my provider.')">Copy direct-download prompt</button>
+    </details>
+  </section>
+</div>
 
 <h2>What is EHI Export?</h2>
 <p>Every certified EHR system in the US has been required to support <strong>single-patient EHI Export</strong> since December 31, 2023. This feature produces a bulk export of <em>all</em> structured data in your patient record -- far more complete than a CCDA, patient portal download, or standard records release.</p>
@@ -145,21 +161,8 @@
   <p><strong>ONC Certification</strong> 170.315(b)(10) -- EHI Export required since December 31, 2023.</p>
 </div>
 
-<h2 id="setup">Setup</h2>
-
+<h2>Runtime requirements</h2>
 <div class="getting-started">
-  <h3>Claude.ai</h3>
-  <ol>
-    <li>Open <a href="https://claude.ai/settings/capabilities" target="_blank">Claude.ai Settings → Capabilities</a></li>
-    <li>Enable <code>Code execution and file creation</code></li>
-    <li>Enable <code>Allow network egress</code></li>
-    <li>For <strong>Domain allowlist</strong>, either choose <code>All domains</code>, or add <code>request-my-ehi.joshuamandel.com</code> under Additional allowed domains</li>
-    <li>Paste the prompt above into a new chat!</li>
-  </ol>
-</div>
-
-<div class="getting-started">
-  <h3>Other AI Agents</h3>
   <p style="margin-bottom: 0.75rem;">This skill works with any AI agent that has:</p>
   <ol>
     <li><strong>Network access</strong> — to fetch the skill, call signature/fax APIs, and search for provider info</li>
@@ -182,15 +185,12 @@
 </footer>
 
 <script>
-const PROMPT_TEXT = `Please use https://request-my-ehi.joshuamandel.com/skill.zip to help me fax an EHI Export request to my provider. Read the SKILL.md in full.`;
-
-function copyPrompt(el) {
-  navigator.clipboard.writeText(PROMPT_TEXT).then(() => {
-    el.classList.add('copied');
-    el.querySelector('.copy-hint').textContent = 'Copied!';
+function copyText(button, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const original = button.textContent;
+    button.textContent = 'Copied';
     setTimeout(() => {
-      el.classList.remove('copied');
-      el.querySelector('.copy-hint').textContent = 'Click anywhere to copy';
+      button.textContent = original;
     }, 2000);
   });
 }
